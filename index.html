@@ -3,24 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My AI Assistant</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&family=Shippori+Mincho:wght@400;600&display=swap" rel="stylesheet">
+<title>Zoe's AI Assistant</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #0f0f13;
-  --surface: #1a1a24;
-  --surface2: #22222f;
-  --border: #2e2e3f;
-  --accent: #7c6af7;
-  --accent2: #f7a26a;
-  --text: #e8e8f0;
-  --text2: #8888aa;
-  --text3: #555570;
-  --success: #5dd88a;
-  --danger: #f76a6a;
-  --user-bubble: #2a2640;
-  --ai-bubble: #1e1e2a;
-  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --bg: #1e2027;
+  --surface: #252830;
+  --surface2: #2d3039;
+  --surface3: #333744;
+  --border: #383d4a;
+  --border2: #444a58;
+  --accent: #5b8af0;
+  --accent-light: rgba(91,138,240,0.12);
+  --text: #e4e6ef;
+  --text2: #9096a8;
+  --text3: #565d70;
+  --user-bubble: #2e4080;
+  --ai-bubble: #2d3039;
+  --shadow: 0 2px 12px rgba(0,0,0,0.25);
+  --success: #4caf7d;
+  --danger: #e05c5c;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,12 +34,13 @@ body {
   height: 100vh;
   display: flex;
   overflow: hidden;
+  font-size: 14px;
 }
 
-/* ── SIDEBAR ── */
+/* SIDEBAR */
 .sidebar {
-  width: 260px;
-  min-width: 260px;
+  width: 248px;
+  min-width: 248px;
   background: var(--surface);
   border-right: 1px solid var(--border);
   display: flex;
@@ -46,38 +49,46 @@ body {
 }
 
 .sidebar-header {
-  padding: 20px 16px 12px;
+  padding: 16px;
   border-bottom: 1px solid var(--border);
 }
 
 .app-title {
-  font-family: 'Shippori Mincho', serif;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
-  letter-spacing: 0.05em;
   margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.02em;
 }
 
-.new-project-btn {
+.app-dot {
+  width: 7px; height: 7px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.new-btn {
   width: 100%;
   padding: 8px 12px;
-  background: var(--accent);
-  color: white;
-  border: none;
+  background: var(--accent-light);
+  color: var(--accent);
+  border: 1px solid rgba(91,138,240,0.25);
   border-radius: 6px;
   font-family: 'Noto Sans JP', sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: all 0.15s;
   display: flex;
   align-items: center;
   gap: 6px;
   justify-content: center;
 }
 
-.new-project-btn:hover { opacity: 0.85; }
+.new-btn:hover { background: rgba(91,138,240,0.2); border-color: rgba(91,138,240,0.4); }
 
 .projects-list {
   flex: 1;
@@ -85,26 +96,36 @@ body {
   padding: 8px;
 }
 
-.projects-list::-webkit-scrollbar { width: 4px; }
-.projects-list::-webkit-scrollbar-track { background: transparent; }
-.projects-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.projects-list::-webkit-scrollbar { width: 3px; }
+.projects-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.section-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 8px 4px;
+}
 
 .project-item {
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.15s;
-  margin-bottom: 2px;
+  transition: all 0.12s;
+  margin-bottom: 1px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .project-item:hover { background: var(--surface2); }
-.project-item.active { background: var(--user-bubble); border-left: 3px solid var(--accent); }
+.project-item.active { background: var(--surface3); }
 
-.project-info { flex: 1; min-width: 0; }
+.project-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.project-emoji { font-size: 15px; flex-shrink: 0; }
+.project-text { min-width: 0; }
 
 .project-name {
   font-size: 13px;
@@ -115,59 +136,60 @@ body {
   text-overflow: ellipsis;
 }
 
+.project-item.active .project-name { color: var(--accent); }
+
 .project-desc {
   font-size: 11px;
-  color: var(--text2);
+  color: var(--text3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
-.project-actions {
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
+.project-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
 .project-item:hover .project-actions { opacity: 1; }
 
 .icon-btn {
   background: none;
   border: none;
-  color: var(--text2);
+  color: var(--text3);
   cursor: pointer;
-  padding: 3px;
-  border-radius: 3px;
-  font-size: 12px;
-  transition: all 0.15s;
-  line-height: 1;
+  padding: 3px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  transition: all 0.12s;
 }
 
-.icon-btn:hover { background: var(--border); color: var(--text); }
+.icon-btn:hover { background: var(--border); color: var(--text2); }
 .icon-btn.danger:hover { color: var(--danger); }
 
 .sidebar-footer {
-  padding: 12px 16px;
+  padding: 10px 16px;
   border-top: 1px solid var(--border);
   font-family: 'DM Mono', monospace;
   font-size: 10px;
   color: var(--text3);
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* ── MAIN AREA ── */
+.status-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; }
+
+/* MAIN */
 .main {
   flex: 1;
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  background: var(--bg);
 }
 
-/* ── TOP BAR ── */
+/* TOPBAR */
 .topbar {
-  padding: 14px 24px;
+  padding: 12px 20px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -176,75 +198,39 @@ body {
   flex-shrink: 0;
 }
 
-.current-project {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+.current-project { display: flex; align-items: center; gap: 10px; }
+.current-emoji { font-size: 18px; }
+.current-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.topbar-actions { display: flex; gap: 6px; }
 
-.current-project-name {
-  font-family: 'Shippori Mincho', serif;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.project-badge {
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: rgba(124,106,247,0.15);
-  color: var(--accent);
-  letter-spacing: 0.05em;
-}
-
-.topbar-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.clear-btn {
+.topbar-btn {
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border2);
   color: var(--text2);
   font-family: 'Noto Sans JP', sans-serif;
   font-size: 12px;
-  padding: 6px 12px;
+  padding: 5px 11px;
   border-radius: 5px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.12s;
 }
 
-.clear-btn:hover { border-color: var(--danger); color: var(--danger); }
+.topbar-btn:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+.topbar-btn.danger:hover { border-color: var(--danger); color: var(--danger); }
+.topbar-btn.primary:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
 
-.edit-prompt-btn {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text2);
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 12px;
-  padding: 6px 12px;
-  border-radius: 5px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.edit-prompt-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-/* ── CHAT ── */
+/* CHAT */
 .chat-area {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .chat-area::-webkit-scrollbar { width: 4px; }
-.chat-area::-webkit-scrollbar-track { background: transparent; }
-.chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.chat-area::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 
 .empty-state {
   flex: 1;
@@ -252,129 +238,120 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  color: var(--text3);
+  gap: 10px;
   text-align: center;
+  padding: 40px;
 }
 
-.empty-icon { font-size: 48px; opacity: 0.4; }
-.empty-title { font-family: 'Shippori Mincho', serif; font-size: 18px; color: var(--text2); }
-.empty-desc { font-size: 13px; line-height: 1.6; max-width: 300px; }
+.empty-icon { font-size: 36px; opacity: 0.5; }
+.empty-title { font-size: 15px; font-weight: 600; color: var(--text2); }
+.empty-desc { font-size: 12px; line-height: 1.6; color: var(--text3); max-width: 260px; }
 
 .message {
   display: flex;
-  gap: 12px;
-  animation: msgIn 0.25s ease;
+  gap: 10px;
+  animation: msgIn 0.2s ease;
+  max-width: 780px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 @keyframes msgIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(5px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .message.user { flex-direction: row-reverse; }
 
 .avatar {
-  width: 32px;
-  height: 32px;
+  width: 28px; height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 11px;
   flex-shrink: 0;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .message.user .avatar { background: var(--accent); color: white; }
-.message.ai .avatar { background: var(--surface2); color: var(--accent2); border: 1px solid var(--border); }
+.message.ai .avatar { background: var(--surface3); color: var(--text2); border: 1px solid var(--border); font-size: 13px; }
 
 .bubble {
-  max-width: 70%;
-  padding: 12px 16px;
-  border-radius: 12px;
+  max-width: 72%;
+  padding: 10px 14px;
+  border-radius: 10px;
   font-size: 14px;
-  line-height: 1.7;
+  line-height: 1.75;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .message.user .bubble {
   background: var(--user-bubble);
-  border: 1px solid rgba(124,106,247,0.2);
-  border-radius: 12px 4px 12px 12px;
+  color: #d4e0ff;
+  border: 1px solid rgba(91,138,240,0.2);
+  border-radius: 10px 3px 10px 10px;
 }
 
 .message.ai .bubble {
   background: var(--ai-bubble);
+  color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 4px 12px 12px 12px;
+  border-radius: 3px 10px 10px 10px;
 }
 
-.bubble-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-
+.bubble-actions { display: flex; gap: 4px; margin-top: 5px; opacity: 0; transition: opacity 0.12s; }
 .message:hover .bubble-actions { opacity: 1; }
 
 .bubble-action-btn {
   background: none;
-  border: none;
+  border: 1px solid var(--border);
   color: var(--text3);
-  font-size: 11px;
+  font-size: 10px;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
-  transition: all 0.15s;
+  padding: 2px 7px;
+  border-radius: 4px;
+  transition: all 0.12s;
   font-family: 'DM Mono', monospace;
 }
 
-.bubble-action-btn:hover { background: var(--border); color: var(--text2); }
+.bubble-action-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--surface2); }
 
-.thinking {
-  display: flex;
-  gap: 4px;
-  padding: 4px 0;
-}
-
+.thinking { display: flex; gap: 4px; padding: 2px 0; align-items: center; }
 .thinking span {
-  width: 6px;
-  height: 6px;
-  background: var(--accent);
+  width: 5px; height: 5px;
+  background: var(--text3);
   border-radius: 50%;
   animation: bounce 1.2s infinite;
-  opacity: 0.6;
 }
-
 .thinking span:nth-child(2) { animation-delay: 0.2s; }
 .thinking span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes bounce {
-  0%, 80%, 100% { transform: translateY(0); }
-  40% { transform: translateY(-6px); }
+  0%,80%,100% { transform: translateY(0); opacity: 0.3; }
+  40% { transform: translateY(-5px); opacity: 1; }
 }
 
-/* ── INPUT ── */
+/* INPUT */
 .input-area {
-  padding: 16px 24px 20px;
+  padding: 12px 20px 16px;
   border-top: 1px solid var(--border);
   background: var(--surface);
   flex-shrink: 0;
 }
 
+.input-inner { max-width: 780px; margin: 0 auto; }
+
 .input-wrap {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-end;
   background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
-  transition: border-color 0.2s;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 9px 12px;
+  transition: border-color 0.15s;
 }
 
 .input-wrap:focus-within { border-color: var(--accent); }
@@ -389,8 +366,8 @@ body {
   line-height: 1.6;
   resize: none;
   outline: none;
-  max-height: 160px;
-  min-height: 24px;
+  max-height: 130px;
+  min-height: 22px;
 }
 
 .chat-input::placeholder { color: var(--text3); }
@@ -399,243 +376,152 @@ body {
   background: var(--accent);
   border: none;
   color: white;
-  width: 34px;
-  height: 34px;
-  border-radius: 7px;
+  width: 30px; height: 30px;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: opacity 0.2s;
+  transition: all 0.15s;
   flex-shrink: 0;
-  font-size: 15px;
+  font-size: 13px;
 }
 
-.send-btn:hover { opacity: 0.85; }
+.send-btn:hover { background: #4a79e0; }
 .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
-.input-hint {
-  text-align: center;
-  font-family: 'DM Mono', monospace;
-  font-size: 10px;
-  color: var(--text3);
-  margin-top: 8px;
-}
+.input-hint { text-align: center; font-size: 10px; color: var(--text3); margin-top: 6px; font-family: 'DM Mono', monospace; }
 
-/* ── NO PROJECT ── */
+/* NO PROJECT */
 .no-project {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  color: var(--text2);
-  text-align: center;
+  gap: 12px;
   padding: 40px;
+  text-align: center;
 }
 
-.no-project-icon { font-size: 60px; opacity: 0.3; }
-.no-project h2 { font-family: 'Shippori Mincho', serif; font-size: 20px; color: var(--text); }
-.no-project p { font-size: 13px; line-height: 1.7; color: var(--text2); max-width: 320px; }
+.no-project-icon { font-size: 44px; opacity: 0.4; }
+.no-project h2 { font-size: 17px; font-weight: 600; color: var(--text); }
+.no-project p { font-size: 13px; line-height: 1.7; color: var(--text2); max-width: 280px; }
 
-.start-btn {
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 6px;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.2s;
-  margin-top: 8px;
-}
-
-.start-btn:hover { opacity: 0.85; }
-
-/* ── MODAL ── */
+/* MODAL */
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
   z-index: 1000;
-  backdrop-filter: blur(4px);
-  animation: fadeIn 0.2s ease;
+  backdrop-filter: blur(3px);
 }
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .modal {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 28px;
-  width: 500px;
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 22px;
+  width: 460px;
   max-width: 90vw;
-  box-shadow: var(--shadow);
-  animation: slideUp 0.2s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
 }
 
-@keyframes slideUp {
-  from { transform: translateY(16px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
-}
+.modal-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--text); }
 
-.modal-title {
-  font-family: 'Shippori Mincho', serif;
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 20px;
-  color: var(--text);
-}
+.form-group { margin-bottom: 13px; }
 
-.form-group { margin-bottom: 16px; }
-
-.form-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text2);
-  margin-bottom: 6px;
-  letter-spacing: 0.05em;
-}
+.form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 5px; letter-spacing: 0.04em; }
 
 .form-input, .form-textarea {
   width: 100%;
   background: var(--surface2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border2);
   color: var(--text);
   font-family: 'Noto Sans JP', sans-serif;
   font-size: 13px;
-  padding: 10px 12px;
+  padding: 8px 11px;
   border-radius: 6px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.15s;
 }
 
 .form-input:focus, .form-textarea:focus { border-color: var(--accent); }
-.form-textarea { resize: vertical; min-height: 120px; line-height: 1.6; }
+.form-textarea { resize: vertical; min-height: 100px; line-height: 1.6; }
+.form-hint { font-size: 11px; color: var(--text3); margin-top: 4px; }
 
-.form-hint {
-  font-size: 11px;
-  color: var(--text3);
-  margin-top: 4px;
-  line-height: 1.4;
-}
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
 
-.modal-actions {
-  display: flex;
-  gap: 8px;
-  justify-content: flex-end;
-  margin-top: 20px;
-}
-
-.btn {
-  padding: 8px 18px;
-  border-radius: 6px;
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
-  border: none;
-}
-
+.btn { padding: 8px 16px; border-radius: 6px; font-family: 'Noto Sans JP', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.12s; border: none; }
 .btn-primary { background: var(--accent); color: white; }
-.btn-primary:hover { opacity: 0.85; }
-.btn-ghost { background: none; border: 1px solid var(--border); color: var(--text2); }
-.btn-ghost:hover { border-color: var(--text2); color: var(--text); }
+.btn-primary:hover { background: #4a79e0; }
+.btn-ghost { background: none; border: 1px solid var(--border2); color: var(--text2); }
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
 
-/* ── EMOJI PICKER ── */
-.emoji-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
+.emoji-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px; }
 
 .emoji-opt {
-  width: 34px;
-  height: 34px;
-  border-radius: 6px;
-  border: 2px solid transparent;
+  width: 30px; height: 30px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
   background: var(--surface2);
-  font-size: 18px;
+  font-size: 15px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
 }
 
-.emoji-opt:hover { border-color: var(--accent); }
-.emoji-opt.selected { border-color: var(--accent); background: rgba(124,106,247,0.15); }
-
-@media (max-width: 640px) {
-  .sidebar { width: 200px; min-width: 200px; }
-  .bubble { max-width: 85%; }
-}
+.emoji-opt:hover { border-color: var(--accent); background: var(--accent-light); }
+.emoji-opt.selected { border-color: var(--accent); background: var(--accent-light); }
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
   <div class="sidebar-header">
-    <div class="app-title">✦ My AI Assistant</div>
-    <button class="new-project-btn" onclick="openNewProjectModal()">
-      ＋ 新しいプロジェクト
-    </button>
+    <div class="app-title">
+      <div class="app-dot"></div>
+      Zoe's AI Assistant
+    </div>
+    <button class="new-btn" onclick="openNewProjectModal()">＋ 新しいプロジェクト</button>
   </div>
   <div class="projects-list" id="projectsList"></div>
-  <div class="sidebar-footer" id="sidebarFooter">Claude Sonnet 4.6</div>
-</div>
-
-<!-- MAIN -->
-<div class="main" id="mainArea">
-  <div class="no-project" id="noProject">
-    <div class="no-project-icon">✦</div>
-    <h2>プロジェクトを作成してください</h2>
-    <p>左の「新しいプロジェクト」からプロジェクトを作成して、AIとのチャットを始めましょう。</p>
-    <button class="start-btn" onclick="openNewProjectModal()">最初のプロジェクトを作る</button>
+  <div class="sidebar-footer">
+    <div class="status-dot"></div>
+    Claude Sonnet 4.6
   </div>
 </div>
 
-<!-- MODAL -->
-<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModal(event)">
+<div class="main" id="mainArea">
+  <div class="no-project">
+    <div class="no-project-icon">✦</div>
+    <h2>Zoe's AI Assistant</h2>
+    <p>左のサイドバーから「汎用チャット」を選ぶか、新しいプロジェクトを作成してください。</p>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModalOutside(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="modalTitle">新しいプロジェクト</div>
-
     <div class="form-group">
       <label class="form-label">アイコン</label>
-      <div class="emoji-row" id="emojiPicker">
-        <!-- filled by JS -->
-      </div>
+      <div class="emoji-row" id="emojiPicker"></div>
     </div>
-
     <div class="form-group">
       <label class="form-label">プロジェクト名 *</label>
-      <input type="text" class="form-input" id="projectName" placeholder="例：メール作成、履歴書改善、求人票分析..." maxlength="30">
+      <input type="text" class="form-input" id="projectName" placeholder="例：メール作成、履歴書改善..." maxlength="30">
     </div>
-
     <div class="form-group">
       <label class="form-label">説明（任意）</label>
       <input type="text" class="form-input" id="projectDesc" placeholder="例：候補者・企業へのメール作成" maxlength="50">
     </div>
-
     <div class="form-group">
       <label class="form-label">システムPrompt *</label>
       <textarea class="form-textarea" id="projectPrompt" placeholder="AIへの指示を書いてください。
 
-例：あなたは日本の人材紹介会社の採用コンサルタントです。候補者と企業へのメールを丁寧かつ自然なビジネス日本語で作成してください。メールは簡潔に、件名から始めてください。"></textarea>
-      <div class="form-hint">AIがどのように振る舞うかを指定します。具体的に書くほど精度が上がります。</div>
+例：あなたは日本の人材紹介会社の採用コンサルタントです。候補者と企業へのメールを丁寧かつ自然なビジネス日本語で作成してください。"></textarea>
+      <div class="form-hint">具体的に書くほど精度が上がります。</div>
     </div>
-
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="hideModal()">キャンセル</button>
       <button class="btn btn-primary" id="modalSaveBtn" onclick="saveProject()">作成</button>
@@ -644,80 +530,75 @@ body {
 </div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
-let projects = JSON.parse(localStorage.getItem('aiProjects') || '[]');
+const GENERAL_ID = '__general__';
+const EMOJIS = ['💬','📧','📄','📋','🔍','✍️','📊','🤝','💼','🎯','⚡','🌐','📝','🗂️','💡','🧠','🗣️','📨'];
+
+let projects = JSON.parse(localStorage.getItem('aiProjects_v2') || '[]');
 let currentProjectId = null;
 let editingProjectId = null;
 let selectedEmoji = '💬';
 let isLoading = false;
 
-const EMOJIS = ['💬','📧','📄','📋','🔍','✍️','📊','🤝','💼','🎯','⚡','🌐','📝','🗂️','💡'];
+renderSidebar();
 
-// ── Init ───────────────────────────────────────────────────────────────────
-renderProjects();
-initEmojiPicker();
+function saveProjects() { localStorage.setItem('aiProjects_v2', JSON.stringify(projects)); }
+
+function renderSidebar() {
+  const list = document.getElementById('projectsList');
+  let html = `<div class="section-label">チャット</div>
+    <div class="project-item ${currentProjectId===GENERAL_ID?'active':''}" onclick="selectProject('${GENERAL_ID}')">
+      <div class="project-info">
+        <div class="project-emoji">💬</div>
+        <div class="project-text">
+          <div class="project-name">汎用チャット</div>
+          <div class="project-desc">何でも聞いてください</div>
+        </div>
+      </div>
+    </div>`;
+
+  if (projects.length > 0) {
+    html += `<div class="section-label" style="margin-top:8px">プロジェクト</div>`;
+    html += projects.map(p => `
+      <div class="project-item ${currentProjectId===p.id?'active':''}" onclick="selectProject('${p.id}')">
+        <div class="project-info">
+          <div class="project-emoji">${p.emoji}</div>
+          <div class="project-text">
+            <div class="project-name">${p.name}</div>
+            ${p.desc?`<div class="project-desc">${p.desc}</div>`:''}
+          </div>
+        </div>
+        <div class="project-actions">
+          <button class="icon-btn" onclick="event.stopPropagation();openEditModal('${p.id}')">✏️</button>
+          <button class="icon-btn danger" onclick="event.stopPropagation();deleteProject('${p.id}')">🗑</button>
+        </div>
+      </div>`).join('');
+  }
+  list.innerHTML = html;
+}
+
+function selectProject(id) { currentProjectId = id; renderSidebar(); renderChatArea(); }
+
+function deleteProject(id) {
+  if (!confirm('削除しますか？')) return;
+  projects = projects.filter(p => p.id !== id);
+  localStorage.removeItem(`chat_${id}`);
+  if (currentProjectId === id) currentProjectId = null;
+  saveProjects(); renderSidebar();
+  currentProjectId ? renderChatArea() : renderNoProject();
+}
 
 function initEmojiPicker() {
-  const picker = document.getElementById('emojiPicker');
-  picker.innerHTML = EMOJIS.map(e =>
-    `<div class="emoji-opt ${e===selectedEmoji?'selected':''}" onclick="selectEmoji('${e}')">${e}</div>`
-  ).join('');
+  document.getElementById('emojiPicker').innerHTML = EMOJIS.map(e =>
+    `<div class="emoji-opt ${e===selectedEmoji?'selected':''}" onclick="selectEmoji('${e}')">${e}</div>`).join('');
 }
 
 function selectEmoji(e) {
   selectedEmoji = e;
-  document.querySelectorAll('.emoji-opt').forEach(el => {
-    el.classList.toggle('selected', el.textContent === e);
-  });
+  document.querySelectorAll('.emoji-opt').forEach(el => el.classList.toggle('selected', el.textContent === e));
 }
 
-// ── Projects ───────────────────────────────────────────────────────────────
-function saveProjects() {
-  localStorage.setItem('aiProjects', JSON.stringify(projects));
-}
-
-function renderProjects() {
-  const list = document.getElementById('projectsList');
-  if (!projects.length) {
-    list.innerHTML = '<div style="padding:16px;text-align:center;font-size:12px;color:var(--text3)">プロジェクトがまだありません</div>';
-    return;
-  }
-  list.innerHTML = projects.map(p => `
-    <div class="project-item ${p.id === currentProjectId ? 'active' : ''}" onclick="selectProject('${p.id}')">
-      <div class="project-info">
-        <div class="project-name">${p.emoji} ${p.name}</div>
-        ${p.desc ? `<div class="project-desc">${p.desc}</div>` : ''}
-      </div>
-      <div class="project-actions">
-        <button class="icon-btn" onclick="event.stopPropagation();openEditModal('${p.id}')" title="編集">✏️</button>
-        <button class="icon-btn danger" onclick="event.stopPropagation();deleteProject('${p.id}')" title="削除">🗑</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-function selectProject(id) {
-  currentProjectId = id;
-  renderProjects();
-  renderChatArea();
-}
-
-function deleteProject(id) {
-  if (!confirm('このプロジェクトを削除しますか？')) return;
-  projects = projects.filter(p => p.id !== id);
-  localStorage.removeItem(`chat_${id}`);
-  if (currentProjectId === id) {
-    currentProjectId = null;
-    renderChatArea();
-  }
-  saveProjects();
-  renderProjects();
-}
-
-// ── Modal ──────────────────────────────────────────────────────────────────
 function openNewProjectModal() {
-  editingProjectId = null;
-  selectedEmoji = '💬';
+  editingProjectId = null; selectedEmoji = '💬';
   document.getElementById('modalTitle').textContent = '新しいプロジェクト';
   document.getElementById('modalSaveBtn').textContent = '作成';
   document.getElementById('projectName').value = '';
@@ -731,8 +612,7 @@ function openNewProjectModal() {
 function openEditModal(id) {
   const p = projects.find(x => x.id === id);
   if (!p) return;
-  editingProjectId = id;
-  selectedEmoji = p.emoji;
+  editingProjectId = id; selectedEmoji = p.emoji;
   document.getElementById('modalTitle').textContent = 'プロジェクトを編集';
   document.getElementById('modalSaveBtn').textContent = '保存';
   document.getElementById('projectName').value = p.name;
@@ -742,178 +622,117 @@ function openEditModal(id) {
   document.getElementById('modalOverlay').style.display = 'flex';
 }
 
-function hideModal() {
-  document.getElementById('modalOverlay').style.display = 'none';
-}
-
-function closeModal(e) {
-  if (e.target === document.getElementById('modalOverlay')) hideModal();
-}
+function hideModal() { document.getElementById('modalOverlay').style.display = 'none'; }
+function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) hideModal(); }
 
 function saveProject() {
   const name = document.getElementById('projectName').value.trim();
   const desc = document.getElementById('projectDesc').value.trim();
   const prompt = document.getElementById('projectPrompt').value.trim();
-
   if (!name) { alert('プロジェクト名を入力してください'); return; }
-  if (!prompt) { alert('システムPromptを入力してください'); return; }
+  if (!prompt) { alert('Promptを入力してください'); return; }
 
   if (editingProjectId) {
     const idx = projects.findIndex(p => p.id === editingProjectId);
-    if (idx !== -1) {
-      projects[idx] = { ...projects[idx], name, desc, prompt, emoji: selectedEmoji };
-    }
+    if (idx !== -1) projects[idx] = { ...projects[idx], name, desc, prompt, emoji: selectedEmoji };
   } else {
     const newP = { id: Date.now().toString(), name, desc, prompt, emoji: selectedEmoji };
     projects.push(newP);
     currentProjectId = newP.id;
   }
-
-  saveProjects();
-  renderProjects();
-  renderChatArea();
-  hideModal();
+  saveProjects(); renderSidebar(); renderChatArea(); hideModal();
 }
 
-// ── Chat Area ──────────────────────────────────────────────────────────────
+function getMessages() { return JSON.parse(localStorage.getItem(`chat_${currentProjectId}`) || '[]'); }
+function saveMessages(msgs) { localStorage.setItem(`chat_${currentProjectId}`, JSON.stringify(msgs)); }
+
+function renderNoProject() {
+  document.getElementById('mainArea').innerHTML = `
+    <div class="no-project">
+      <div class="no-project-icon">✦</div>
+      <h2>Zoe's AI Assistant</h2>
+      <p>左のサイドバーから「汎用チャット」を選ぶか、新しいプロジェクトを作成してください。</p>
+    </div>`;
+}
+
 function renderChatArea() {
-  const main = document.getElementById('mainArea');
-  const noProject = document.getElementById('noProject');
+  if (!currentProjectId) { renderNoProject(); return; }
+  const isGeneral = currentProjectId === GENERAL_ID;
+  const p = isGeneral ? { name:'汎用チャット', emoji:'💬', prompt:'', id:GENERAL_ID } : projects.find(x => x.id === currentProjectId);
+  if (!p) { renderNoProject(); return; }
 
-  if (!currentProjectId) {
-    main.innerHTML = `
-      <div class="no-project" id="noProject">
-        <div class="no-project-icon">✦</div>
-        <h2>プロジェクトを選択してください</h2>
-        <p>左のリストからプロジェクトを選ぶか、新しいプロジェクトを作成してください。</p>
-        <button class="start-btn" onclick="openNewProjectModal()">新しいプロジェクトを作る</button>
-      </div>`;
-    return;
-  }
-
-  const p = projects.find(x => x.id === currentProjectId);
-  if (!p) return;
-
-  main.innerHTML = `
+  document.getElementById('mainArea').innerHTML = `
     <div class="topbar">
       <div class="current-project">
-        <span style="font-size:20px">${p.emoji}</span>
-        <span class="current-project-name">${p.name}</span>
-        <span class="project-badge">AI</span>
+        <div class="current-emoji">${p.emoji}</div>
+        <div class="current-name">${p.name}</div>
       </div>
       <div class="topbar-actions">
-        <button class="edit-prompt-btn" onclick="openEditModal('${p.id}')">⚙ Prompt編集</button>
-        <button class="clear-btn" onclick="clearChat('${p.id}')">🗑 履歴クリア</button>
+        ${!isGeneral ? `<button class="topbar-btn primary" onclick="openEditModal('${p.id}')">⚙ Prompt編集</button>` : ''}
+        <button class="topbar-btn danger" onclick="clearChat()">🗑 クリア</button>
       </div>
     </div>
     <div class="chat-area" id="chatArea"></div>
     <div class="input-area">
-      <div class="input-wrap">
-        <textarea class="chat-input" id="chatInput" placeholder="メッセージを入力... (Shift+Enter で送信)" rows="1"
-          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
-        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+      <div class="input-inner">
+        <div class="input-wrap">
+          <textarea class="chat-input" id="chatInput" placeholder="メッセージを入力... (Shift+Enter で送信)"
+            rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+          <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+        </div>
+        <div class="input-hint">Shift+Enter で送信 · Enter で改行</div>
       </div>
-      <div class="input-hint">Shift+Enter で送信 · Enter で改行</div>
     </div>`;
 
   renderMessages();
-  scrollToBottom();
-}
-
-function getMessages() {
-  return JSON.parse(localStorage.getItem(`chat_${currentProjectId}`) || '[]');
-}
-
-function saveMessages(msgs) {
-  localStorage.setItem(`chat_${currentProjectId}`, JSON.stringify(msgs));
+  document.getElementById('chatInput')?.focus();
 }
 
 function renderMessages() {
   const chatArea = document.getElementById('chatArea');
   if (!chatArea) return;
   const msgs = getMessages();
-
   if (!msgs.length) {
-    const p = projects.find(x => x.id === currentProjectId);
-    chatArea.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">${p?.emoji || '💬'}</div>
-        <div class="empty-title">${p?.name}</div>
-        <div class="empty-desc">${p?.desc || 'メッセージを入力して会話を始めましょう'}</div>
-      </div>`;
+    const isGeneral = currentProjectId === GENERAL_ID;
+    const p = isGeneral ? { emoji:'💬', name:'汎用チャット', desc:'何でも聞いてください' } : projects.find(x => x.id === currentProjectId);
+    chatArea.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">${p?.emoji}</div>
+      <div class="empty-title">${p?.name}</div>
+      <div class="empty-desc">${p?.desc || 'メッセージを入力して会話を始めましょう'}</div>
+    </div>`;
     return;
   }
-
   chatArea.innerHTML = msgs.map((m, i) => `
     <div class="message ${m.role}">
-      <div class="avatar">${m.role === 'user' ? 'Z' : '✦'}</div>
+      <div class="avatar">${m.role==='user'?'Z':'✦'}</div>
       <div>
         <div class="bubble">${escapeHtml(m.content)}</div>
         <div class="bubble-actions">
           <button class="bubble-action-btn" onclick="copyMsg(${i})">コピー</button>
-          ${m.role === 'ai' ? `<button class="bubble-action-btn" onclick="regenMsg(${i})">再生成</button>` : ''}
+          ${m.role==='ai'?`<button class="bubble-action-btn" onclick="regenMsg(${i})">再生成</button>`:''}
         </div>
       </div>
-    </div>
-  `).join('');
-
-  scrollToBottom();
+    </div>`).join('');
+  chatArea.scrollTop = chatArea.scrollHeight;
 }
 
-function escapeHtml(text) {
-  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function scrollToBottom() {
-  const chatArea = document.getElementById('chatArea');
-  if (chatArea) chatArea.scrollTop = chatArea.scrollHeight;
-}
-
-function clearChat(id) {
-  if (!confirm('会話履歴をクリアしますか？')) return;
-  localStorage.removeItem(`chat_${id}`);
-  renderMessages();
-}
-
-function copyMsg(idx) {
-  const msgs = getMessages();
-  navigator.clipboard.writeText(msgs[idx]?.content || '');
-}
-
-async function regenMsg(idx) {
-  const msgs = getMessages();
-  const truncated = msgs.slice(0, idx);
-  saveMessages(truncated);
-  renderMessages();
-  await callAPI(truncated);
-}
-
-// ── Send ───────────────────────────────────────────────────────────────────
-function handleKey(e) {
-  if (e.key === 'Enter' && e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-}
-
-function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-}
+function escapeHtml(t) { return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function clearChat() { if (!confirm('クリアしますか？')) return; localStorage.removeItem(`chat_${currentProjectId}`); renderMessages(); }
+function copyMsg(i) { navigator.clipboard.writeText(getMessages()[i]?.content || ''); }
+async function regenMsg(i) { const msgs = getMessages().slice(0,i); saveMessages(msgs); renderMessages(); await callAPI(msgs); }
+function handleKey(e) { if (e.key==='Enter' && e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,130)+'px'; }
 
 async function sendMessage() {
   const input = document.getElementById('chatInput');
   if (!input) return;
   const text = input.value.trim();
   if (!text || isLoading) return;
-
   const msgs = getMessages();
-  msgs.push({ role: 'user', content: text });
+  msgs.push({ role:'user', content:text });
   saveMessages(msgs);
-  input.value = '';
-  input.style.height = 'auto';
+  input.value = ''; input.style.height = 'auto';
   renderMessages();
-
   await callAPI(msgs);
 }
 
@@ -921,64 +740,39 @@ async function callAPI(msgs) {
   isLoading = true;
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) sendBtn.disabled = true;
-
-  // Add thinking indicator
   const chatArea = document.getElementById('chatArea');
   if (chatArea) {
-    const thinking = document.createElement('div');
-    thinking.className = 'message ai';
-    thinking.id = 'thinkingMsg';
-    thinking.innerHTML = `
-      <div class="avatar">✦</div>
-      <div class="bubble">
-        <div class="thinking"><span></span><span></span><span></span></div>
-      </div>`;
-    chatArea.appendChild(thinking);
-    scrollToBottom();
+    const t = document.createElement('div');
+    t.className = 'message ai'; t.id = 'thinkingMsg';
+    t.innerHTML = `<div class="avatar">✦</div><div class="bubble"><div class="thinking"><span></span><span></span><span></span></div></div>`;
+    chatArea.appendChild(t);
+    chatArea.scrollTop = chatArea.scrollHeight;
   }
-
   try {
-    const p = projects.find(x => x.id === currentProjectId);
+    const isGeneral = currentProjectId === GENERAL_ID;
+    const p = isGeneral ? null : projects.find(x => x.id === currentProjectId);
+    const systemPrompt = p?.prompt || 'あなたは優秀なAIアシスタントです。丁寧に回答してください。';
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemPrompt: p?.prompt || '',
-        messages: msgs.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }))
-      })
+      body: JSON.stringify({ systemPrompt, messages: msgs.map(m => ({ role: m.role==='ai'?'assistant':'user', content: m.content })) })
     });
-
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'エラーが発生しました');
-
     const allMsgs = getMessages();
-    allMsgs.push({ role: 'ai', content: data.content });
+    allMsgs.push({ role:'ai', content:data.content });
     saveMessages(allMsgs);
-
   } catch(e) {
     const allMsgs = getMessages();
-    allMsgs.push({ role: 'ai', content: '⚠ エラー: ' + e.message });
+    allMsgs.push({ role:'ai', content:'⚠ エラー: '+e.message });
     saveMessages(allMsgs);
   } finally {
-    const t = document.getElementById('thinkingMsg');
-    if (t) t.remove();
+    document.getElementById('thinkingMsg')?.remove();
     isLoading = false;
     if (sendBtn) sendBtn.disabled = false;
     renderMessages();
-    const input = document.getElementById('chatInput');
-    if (input) input.focus();
+    document.getElementById('chatInput')?.focus();
   }
-}
-
-// ── Initial render ─────────────────────────────────────────────────────────
-if (projects.length === 0) {
-  document.getElementById('mainArea').innerHTML = `
-    <div class="no-project" id="noProject">
-      <div class="no-project-icon">✦</div>
-      <h2>プロジェクトを作成してください</h2>
-      <p>左の「新しいプロジェクト」からプロジェクトを作成して、AIとのチャットを始めましょう。</p>
-      <button class="start-btn" onclick="openNewProjectModal()">最初のプロジェクトを作る</button>
-    </div>`;
 }
 </script>
 </body>
