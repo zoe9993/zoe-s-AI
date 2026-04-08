@@ -6,527 +6,66 @@
 <title>職務経歴書 AI チェッカー</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --ink: #1a1a2e;
-    --paper: #f5f0e8;
-    --accent: #c0392b;
-    --accent2: #2980b9;
-    --gold: #d4a843;
-    --border: #c8bfb0;
-    --shadow: rgba(26,26,46,0.12);
-    --success: #27ae60;
-    --warn: #e67e22;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: 'Noto Sans JP', sans-serif;
-    background: var(--paper);
-    color: var(--ink);
-    min-height: 100vh;
-    background-image:
-      radial-gradient(ellipse at 0% 0%, rgba(192,57,43,0.06) 0%, transparent 50%),
-      radial-gradient(ellipse at 100% 100%, rgba(41,128,185,0.06) 0%, transparent 50%);
-  }
-
-  /* HEADER */
-  header {
-    border-bottom: 2px solid var(--ink);
-    padding: 20px 40px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--paper);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    box-shadow: 0 2px 20px var(--shadow);
-  }
-
-  .logo {
-    font-family: 'Noto Serif JP', serif;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .logo-badge {
-    background: var(--accent);
-    color: white;
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    padding: 3px 8px;
-    border-radius: 2px;
-    letter-spacing: 0.1em;
-  }
-
-  .header-tag {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: #888;
-    letter-spacing: 0.08em;
-  }
-
-  /* MAIN LAYOUT */
-  main {
-    max-width: 960px;
-    margin: 0 auto;
-    padding: 40px 24px 80px;
-  }
-
-  /* API KEY SECTION */
-  .api-section {
-    background: var(--ink);
-    color: var(--paper);
-    border-radius: 4px;
-    padding: 20px 24px;
-    margin-bottom: 32px;
-    display: flex;
-    gap: 12px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .api-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 0.1em;
-    color: var(--gold);
-    white-space: nowrap;
-  }
-
-  .api-input {
-    flex: 1;
-    min-width: 200px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.2);
-    color: var(--paper);
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    padding: 8px 12px;
-    border-radius: 3px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  .api-input:focus { border-color: var(--gold); }
-  .api-input::placeholder { color: rgba(255,255,255,0.3); }
-
-  .api-save-btn {
-    background: var(--gold);
-    color: var(--ink);
-    border: none;
-    font-family: 'Noto Sans JP', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    padding: 8px 18px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    white-space: nowrap;
-  }
-
-  .api-save-btn:hover { opacity: 0.85; }
-
-  .api-status {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    padding: 4px 10px;
-    border-radius: 2px;
-    white-space: nowrap;
-  }
-
-  .api-status.ok { background: rgba(39,174,96,0.2); color: #5dca80; }
-  .api-status.ng { background: rgba(192,57,43,0.2); color: #e88; }
-
-  /* INPUT SECTION */
-  .section-label {
-    font-family: 'Noto Serif JP', serif;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    color: #666;
-    text-transform: uppercase;
-    margin-bottom: 10px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .section-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
-  }
-
-  .input-area {
-    width: 100%;
-    min-height: 220px;
-    border: 1.5px solid var(--border);
-    border-radius: 4px;
-    padding: 16px;
-    font-family: 'Noto Sans JP', sans-serif;
-    font-size: 14px;
-    line-height: 1.8;
-    color: var(--ink);
-    background: white;
-    resize: vertical;
-    outline: none;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-
-  .input-area:focus {
-    border-color: var(--accent2);
-    box-shadow: 0 0 0 3px rgba(41,128,185,0.1);
-  }
-
-  /* CHECK OPTIONS */
-  .options-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-    margin: 16px 0 24px;
-  }
-
-  .option-card {
-    border: 1.5px solid var(--border);
-    border-radius: 4px;
-    padding: 12px 14px;
-    cursor: pointer;
-    transition: all 0.18s;
-    background: white;
-    user-select: none;
-  }
-
-  .option-card:hover { border-color: var(--accent2); }
-
-  .option-card.selected {
-    border-color: var(--accent);
-    background: rgba(192,57,43,0.04);
-  }
-
-  .option-card input { display: none; }
-
-  .option-title {
-    font-size: 13px;
-    font-weight: 500;
-    margin-bottom: 3px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .option-check {
-    width: 16px;
-    height: 16px;
-    border: 1.5px solid var(--border);
-    border-radius: 3px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
-
-  .option-card.selected .option-check {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: white;
-  }
-
-  .option-desc { font-size: 11px; color: #888; line-height: 1.4; padding-left: 22px; }
-
-  /* RUN BUTTON */
-  .run-btn {
-    width: 100%;
-    padding: 16px;
-    background: var(--ink);
-    color: var(--paper);
-    border: none;
-    border-radius: 4px;
-    font-family: 'Noto Serif JP', serif;
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .run-btn::before {
-    content: '';
-    position: absolute;
-    left: -100%;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
-    transition: left 0.4s;
-  }
-
-  .run-btn:hover::before { left: 100%; }
-  .run-btn:hover { background: #2d2d4a; transform: translateY(-1px); box-shadow: 0 4px 20px var(--shadow); }
-  .run-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-  .spinner {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255,255,255,0.3);
-    border-top-color: white;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    display: none;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* RESULTS */
-  .results-wrap {
-    margin-top: 40px;
-    display: none;
-  }
-
-  .result-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-
-  .result-title {
-    font-family: 'Noto Serif JP', serif;
-    font-size: 20px;
-    font-weight: 700;
-  }
-
-  .score-badge {
-    font-family: 'DM Mono', monospace;
-    font-size: 28px;
-    font-weight: 500;
-    padding: 6px 20px;
-    border-radius: 4px;
-    border: 2px solid currentColor;
-  }
-
-  .score-badge.high { color: var(--success); }
-  .score-badge.mid { color: var(--warn); }
-  .score-badge.low { color: var(--accent); }
-
-  /* TABS */
-  .tabs {
-    display: flex;
-    border-bottom: 2px solid var(--border);
-    margin-bottom: 24px;
-    gap: 0;
-  }
-
-  .tab-btn {
-    padding: 10px 20px;
-    border: none;
-    background: none;
-    font-family: 'Noto Sans JP', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    color: #888;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    transition: all 0.15s;
-    letter-spacing: 0.05em;
-  }
-
-  .tab-btn.active { color: var(--ink); border-bottom-color: var(--accent); }
-  .tab-btn:hover { color: var(--ink); }
-
-  .tab-content { display: none; }
-  .tab-content.active { display: block; }
-
-  /* ISSUE CARDS */
-  .issue-card {
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 16px 18px;
-    margin-bottom: 12px;
-    background: white;
-    border-left: 4px solid var(--border);
-    animation: fadeIn 0.3s ease forwards;
-    opacity: 0;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .issue-card.grammar { border-left-color: var(--accent); }
-  .issue-card.format { border-left-color: var(--accent2); }
-  .issue-card.english { border-left-color: var(--gold); }
-  .issue-card.confirm { border-left-color: var(--success); }
-
-  .issue-type {
-    font-family: 'DM Mono', monospace;
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    font-weight: 500;
-    padding: 2px 8px;
-    border-radius: 2px;
-    display: inline-block;
-    margin-bottom: 8px;
-  }
-
-  .issue-card.grammar .issue-type { background: rgba(192,57,43,0.1); color: var(--accent); }
-  .issue-card.format .issue-type { background: rgba(41,128,185,0.1); color: var(--accent2); }
-  .issue-card.english .issue-type { background: rgba(212,168,67,0.12); color: #a07818; }
-  .issue-card.confirm .issue-type { background: rgba(39,174,96,0.1); color: var(--success); }
-
-  .issue-original {
-    font-size: 13px;
-    color: #555;
-    margin-bottom: 6px;
-    padding: 6px 10px;
-    background: #f8f5f0;
-    border-radius: 3px;
-    line-height: 1.6;
-  }
-
-  .issue-original s { color: var(--accent); }
-
-  .issue-fixed {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--ink);
-    margin-bottom: 6px;
-    line-height: 1.6;
-  }
-
-  .issue-reason {
-    font-size: 12px;
-    color: #777;
-    line-height: 1.5;
-  }
-
-  /* CORRECTED TEXT */
-  .corrected-box {
-    background: white;
-    border: 1.5px solid var(--border);
-    border-radius: 4px;
-    padding: 20px;
-    font-size: 14px;
-    line-height: 2;
-    white-space: pre-wrap;
-    position: relative;
-  }
-
-  .copy-btn {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    background: var(--ink);
-    color: white;
-    border: none;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    padding: 6px 14px;
-    border-radius: 3px;
-    cursor: pointer;
-    transition: opacity 0.2s;
-    letter-spacing: 0.05em;
-  }
-
-  .copy-btn:hover { opacity: 0.8; }
-
-  /* SUMMARY STATS */
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 28px;
-  }
-
-  .stat-box {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 14px 16px;
-    text-align: center;
-  }
-
-  .stat-num {
-    font-family: 'DM Mono', monospace;
-    font-size: 28px;
-    font-weight: 500;
-    display: block;
-    line-height: 1;
-    margin-bottom: 4px;
-  }
-
-  .stat-num.red { color: var(--accent); }
-  .stat-num.blue { color: var(--accent2); }
-  .stat-num.gold { color: #a07818; }
-  .stat-num.green { color: var(--success); }
-
-  .stat-label {
-    font-size: 11px;
-    color: #888;
-    letter-spacing: 0.05em;
-  }
-
-  /* ERROR STATE */
-  .error-box {
-    background: rgba(192,57,43,0.06);
-    border: 1px solid rgba(192,57,43,0.3);
-    border-radius: 4px;
-    padding: 16px 20px;
-    font-size: 14px;
-    color: var(--accent);
-    display: none;
-    margin-top: 16px;
-  }
-
-  /* EMPTY STATE */
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: #bbb;
-    font-size: 13px;
-  }
-
-  .empty-icon { font-size: 40px; margin-bottom: 12px; }
-
-  /* FOOTER */
-  .powered {
-    text-align: center;
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: #bbb;
-    margin-top: 60px;
-    letter-spacing: 0.08em;
-  }
-
-  @media (max-width: 600px) {
-    header { padding: 14px 18px; }
-    main { padding: 24px 16px 60px; }
-    .stats-row { grid-template-columns: repeat(2, 1fr); }
-    .options-grid { grid-template-columns: 1fr 1fr; }
-    .api-section { flex-direction: column; align-items: stretch; }
-  }
+  :root{--ink:#1a1a2e;--paper:#f5f0e8;--accent:#c0392b;--accent2:#2980b9;--gold:#d4a843;--border:#c8bfb0;--shadow:rgba(26,26,46,0.12);--success:#27ae60;--warn:#e67e22}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Noto Sans JP',sans-serif;background:var(--paper);color:var(--ink);min-height:100vh;background-image:radial-gradient(ellipse at 0% 0%,rgba(192,57,43,0.06) 0%,transparent 50%),radial-gradient(ellipse at 100% 100%,rgba(41,128,185,0.06) 0%,transparent 50%)}
+  header{border-bottom:2px solid var(--ink);padding:20px 40px;display:flex;align-items:center;justify-content:space-between;background:var(--paper);position:sticky;top:0;z-index:100;box-shadow:0 2px 20px var(--shadow)}
+  .logo{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:700;letter-spacing:.05em;display:flex;align-items:center;gap:10px}
+  .logo-badge{background:var(--accent);color:white;font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;border-radius:2px;letter-spacing:.1em}
+  .header-tag{font-family:'DM Mono',monospace;font-size:11px;color:#888;letter-spacing:.08em}
+  main{max-width:960px;margin:0 auto;padding:40px 24px 80px}
+  .section-label{font-family:'Noto Serif JP',serif;font-size:13px;font-weight:600;letter-spacing:.12em;color:#666;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+  .input-area{width:100%;min-height:220px;border:1.5px solid var(--border);border-radius:4px;padding:16px;font-family:'Noto Sans JP',sans-serif;font-size:14px;line-height:1.8;color:var(--ink);background:white;resize:vertical;outline:none;transition:border-color .2s,box-shadow .2s}
+  .input-area:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(41,128,185,0.1)}
+  .options-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:16px 0 24px}
+  .option-card{border:1.5px solid var(--border);border-radius:4px;padding:12px 14px;cursor:pointer;transition:all .18s;background:white;user-select:none}
+  .option-card:hover{border-color:var(--accent2)}
+  .option-card.selected{border-color:var(--accent);background:rgba(192,57,43,0.04)}
+  .option-card input{display:none}
+  .option-title{font-size:13px;font-weight:500;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+  .option-check{width:16px;height:16px;border:1.5px solid var(--border);border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;transition:all .15s;flex-shrink:0}
+  .option-card.selected .option-check{background:var(--accent);border-color:var(--accent);color:white}
+  .option-desc{font-size:11px;color:#888;line-height:1.4;padding-left:22px}
+  .run-btn{width:100%;padding:16px;background:var(--ink);color:var(--paper);border:none;border-radius:4px;font-family:'Noto Serif JP',serif;font-size:16px;font-weight:600;letter-spacing:.1em;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:10px}
+  .run-btn:hover{background:#2d2d4a;transform:translateY(-1px);box-shadow:0 4px 20px var(--shadow)}
+  .run-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:none}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .results-wrap{margin-top:40px;display:none}
+  .result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+  .result-title{font-family:'Noto Serif JP',serif;font-size:20px;font-weight:700}
+  .score-badge{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;padding:6px 20px;border-radius:4px;border:2px solid currentColor}
+  .score-badge.high{color:var(--success)}.score-badge.mid{color:var(--warn)}.score-badge.low{color:var(--accent)}
+  .tabs{display:flex;border-bottom:2px solid var(--border);margin-bottom:24px}
+  .tab-btn{padding:10px 20px;border:none;background:none;font-family:'Noto Sans JP',sans-serif;font-size:13px;font-weight:500;color:#888;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s}
+  .tab-btn.active{color:var(--ink);border-bottom-color:var(--accent)}
+  .tab-content{display:none}.tab-content.active{display:block}
+  .issue-card{border:1px solid var(--border);border-radius:4px;padding:16px 18px;margin-bottom:12px;background:white;border-left:4px solid var(--border);animation:fadeIn .3s ease forwards;opacity:0}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .issue-card.grammar{border-left-color:var(--accent)}.issue-card.format{border-left-color:var(--accent2)}.issue-card.english{border-left-color:var(--gold)}.issue-card.confirm{border-left-color:var(--success)}
+  .issue-type{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.1em;font-weight:500;padding:2px 8px;border-radius:2px;display:inline-block;margin-bottom:8px}
+  .issue-card.grammar .issue-type{background:rgba(192,57,43,0.1);color:var(--accent)}
+  .issue-card.format .issue-type{background:rgba(41,128,185,0.1);color:var(--accent2)}
+  .issue-card.english .issue-type{background:rgba(212,168,67,0.12);color:#a07818}
+  .issue-card.confirm .issue-type{background:rgba(39,174,96,0.1);color:var(--success)}
+  .issue-original{font-size:13px;color:#555;margin-bottom:6px;padding:6px 10px;background:#f8f5f0;border-radius:3px;line-height:1.6}
+  .issue-fixed{font-size:14px;font-weight:500;color:var(--ink);margin-bottom:6px;line-height:1.6}
+  .issue-reason{font-size:12px;color:#777;line-height:1.5}
+  .corrected-box{background:white;border:1.5px solid var(--border);border-radius:4px;padding:20px;font-size:14px;line-height:2;white-space:pre-wrap;position:relative}
+  .copy-btn{position:absolute;top:12px;right:12px;background:var(--ink);color:white;border:none;font-family:'DM Mono',monospace;font-size:11px;padding:6px 14px;border-radius:3px;cursor:pointer;transition:opacity .2s}
+  .copy-btn:hover{opacity:.8}
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+  .stat-box{background:white;border:1px solid var(--border);border-radius:4px;padding:14px 16px;text-align:center}
+  .stat-num{font-family:'DM Mono',monospace;font-size:28px;font-weight:500;display:block;line-height:1;margin-bottom:4px}
+  .stat-num.red{color:var(--accent)}.stat-num.blue{color:var(--accent2)}.stat-num.gold{color:#a07818}.stat-num.green{color:var(--success)}
+  .stat-label{font-size:11px;color:#888}
+  .error-box{background:rgba(192,57,43,0.06);border:1px solid rgba(192,57,43,0.3);border-radius:4px;padding:16px 20px;font-size:14px;color:var(--accent);display:none;margin-top:16px}
+  .powered{text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:#bbb;margin-top:60px;letter-spacing:.08em}
+  @media(max-width:600px){header{padding:14px 18px}main{padding:24px 16px 60px}.stats-row{grid-template-columns:repeat(2,1fr)}.options-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
-
 <header>
   <div class="logo">
     <span>職務経歴書 AI チェッカー</span>
@@ -534,349 +73,118 @@
   </div>
   <span class="header-tag">Powered by Claude Sonnet</span>
 </header>
-
 <main>
-
-  <!-- API KEY -->
-  <div class="api-section">
-    <span class="api-label">🔑 API KEY</span>
-    <input type="password" class="api-input" id="apiKey" placeholder="sk-ant-api03-..." />
-    <button class="api-save-btn" onclick="saveKey()">保存</button>
-    <span class="api-status ng" id="apiStatus">未設定</span>
-  </div>
-
-  <!-- INPUT -->
   <div class="section-label">職務経歴書テキストを貼り付け</div>
   <textarea class="input-area" id="resumeText" placeholder="職務要約、職務経歴、スキル、自己PRなど、チェックしたい内容をここに貼り付けてください。
 
-例：
-■職務要約
-エンジニアとして約20年のキャリアを持ち、Java（Spring Boot）を主軸に..."></textarea>
+Wordファイルを開いて Ctrl+A → Ctrl+C でコピーして貼り付けてください。"></textarea>
 
-  <!-- OPTIONS -->
   <div class="section-label" style="margin-top:24px;">チェック項目を選択</div>
   <div class="options-grid">
     <label class="option-card selected" onclick="toggleOption(this)">
       <input type="checkbox" checked>
-      <div class="option-title">
-        <span class="option-check">✓</span>
-        日本語文法・表現
-      </div>
+      <div class="option-title"><span class="option-check">✓</span>日本語文法・表現</div>
       <div class="option-desc">語尾・助詞・不自然な表現を修正</div>
     </label>
     <label class="option-card selected" onclick="toggleOption(this)">
       <input type="checkbox" checked>
-      <div class="option-title">
-        <span class="option-check">✓</span>
-        フォーマット整形
-      </div>
+      <div class="option-title"><span class="option-check">✓</span>フォーマット整形</div>
       <div class="option-desc">職務要約・スキル・自己PRの形式を整える</div>
     </label>
     <label class="option-card selected" onclick="toggleOption(this)">
       <input type="checkbox" checked>
-      <div class="option-title">
-        <span class="option-check">✓</span>
-        英語表記の正規化
-      </div>
+      <div class="option-title"><span class="option-check">✓</span>英語表記の正規化</div>
       <div class="option-desc">Spring Boot / MySQL など大文字小文字を統一</div>
     </label>
     <label class="option-card selected" onclick="toggleOption(this)">
       <input type="checkbox" checked>
-      <div class="option-title">
-        <span class="option-check">✓</span>
-        要確認コメント
-      </div>
+      <div class="option-title"><span class="option-check">✓</span>要確認コメント</div>
       <div class="option-desc">数字・規模感が不足している箇所を指摘</div>
     </label>
   </div>
 
-  <!-- RUN -->
   <button class="run-btn" id="runBtn" onclick="runCheck()">
     <div class="spinner" id="spinner"></div>
     <span id="runBtnText">✦ AI チェックを実行</span>
   </button>
-
   <div class="error-box" id="errorBox"></div>
 
-  <!-- RESULTS -->
   <div class="results-wrap" id="resultsWrap">
     <div class="result-header">
       <div class="result-title">チェック結果</div>
       <div class="score-badge" id="scoreBadge">—</div>
     </div>
-
     <div class="stats-row">
-      <div class="stat-box">
-        <span class="stat-num red" id="statGrammar">0</span>
-        <span class="stat-label">文法・表現</span>
-      </div>
-      <div class="stat-box">
-        <span class="stat-num blue" id="statFormat">0</span>
-        <span class="stat-label">フォーマット</span>
-      </div>
-      <div class="stat-box">
-        <span class="stat-num gold" id="statEnglish">0</span>
-        <span class="stat-label">英語表記</span>
-      </div>
-      <div class="stat-box">
-        <span class="stat-num green" id="statConfirm">0</span>
-        <span class="stat-label">要確認</span>
-      </div>
+      <div class="stat-box"><span class="stat-num red" id="statGrammar">0</span><span class="stat-label">文法・表現</span></div>
+      <div class="stat-box"><span class="stat-num blue" id="statFormat">0</span><span class="stat-label">フォーマット</span></div>
+      <div class="stat-box"><span class="stat-num gold" id="statEnglish">0</span><span class="stat-label">英語表記</span></div>
+      <div class="stat-box"><span class="stat-num green" id="statConfirm">0</span><span class="stat-label">要確認</span></div>
     </div>
-
     <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('issues', this)">修正箇所一覧</button>
-      <button class="tab-btn" onclick="switchTab('corrected', this)">修正済みテキスト</button>
+      <button class="tab-btn active" onclick="switchTab('issues',this)">修正箇所一覧</button>
+      <button class="tab-btn" onclick="switchTab('corrected',this)">修正済みテキスト</button>
     </div>
-
-    <div class="tab-content active" id="tab-issues">
-      <div id="issuesList"></div>
-    </div>
-
+    <div class="tab-content active" id="tab-issues"><div id="issuesList"></div></div>
     <div class="tab-content" id="tab-corrected">
-      <div class="corrected-box" id="correctedText">
+      <div class="corrected-box">
         <button class="copy-btn" onclick="copyText()">コピー</button>
         <div id="correctedContent"></div>
       </div>
     </div>
   </div>
-
   <div class="powered">Built with Claude Sonnet 4.6 · Anthropic API</div>
 </main>
-
 <script>
-// ── State ──────────────────────────────────────────────────
-let apiKey = localStorage.getItem('resumeCheckerApiKey') || '';
-
-// Init
-if (apiKey) {
-  document.getElementById('apiKey').value = apiKey;
-  setApiStatus(true);
-}
-
-function saveKey() {
-  const val = document.getElementById('apiKey').value.trim();
-  if (!val.startsWith('sk-ant-')) {
-    alert('APIキーは sk-ant- から始まります。確認してください。');
-    return;
-  }
-  apiKey = val;
-  localStorage.setItem('resumeCheckerApiKey', val);
-  setApiStatus(true);
-}
-
-function setApiStatus(ok) {
-  const el = document.getElementById('apiStatus');
-  el.textContent = ok ? '✓ 設定済み' : '未設定';
-  el.className = 'api-status ' + (ok ? 'ok' : 'ng');
-}
-
-// ── Options ────────────────────────────────────────────────
-function toggleOption(label) {
-  const cb = label.querySelector('input');
-  const check = label.querySelector('.option-check');
-  // Toggle after click (click already fires before this in some browsers)
-  setTimeout(() => {
-    if (label.classList.contains('selected')) {
-      label.classList.remove('selected');
-      check.textContent = '';
-    } else {
-      label.classList.add('selected');
-      check.textContent = '✓';
-    }
-  }, 0);
-}
-
-function getSelectedOptions() {
-  const cards = document.querySelectorAll('.option-card');
-  const opts = [];
-  cards.forEach((c, i) => {
-    if (c.classList.contains('selected')) {
-      opts.push(['日本語文法・表現チェック', 'フォーマット整形', '英語表記の正規化', '要確認コメント挿入'][i]);
-    }
-  });
-  return opts;
-}
-
-// ── Tabs ───────────────────────────────────────────────────
-function switchTab(id, btn) {
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('tab-' + id).classList.add('active');
-  btn.classList.add('active');
-}
-
-// ── Copy ───────────────────────────────────────────────────
-function copyText() {
-  const text = document.getElementById('correctedContent').innerText;
-  navigator.clipboard.writeText(text).then(() => {
-    const btn = document.querySelector('.copy-btn');
-    btn.textContent = '✓ コピー完了';
-    setTimeout(() => btn.textContent = 'コピー', 1800);
-  });
-}
-
-// ── Main Check ────────────────────────────────────────────
-async function runCheck() {
-  if (!apiKey) {
-    showError('APIキーを設定してください。');
-    return;
-  }
-  const text = document.getElementById('resumeText').value.trim();
-  if (!text) {
-    showError('職務経歴書のテキストを入力してください。');
-    return;
-  }
-  const opts = getSelectedOptions();
-  if (opts.length === 0) {
-    showError('チェック項目を1つ以上選択してください。');
-    return;
-  }
-
-  setLoading(true);
-  hideError();
-
-  const systemPrompt = `あなたは日本の人材紹介会社出身のプロキャリアアドバイザーです。
-候補者の職務経歴書を以下の観点でチェックし、JSON形式で結果を返してください。
-
-チェック観点：${opts.join('、')}
-
-返却するJSONの形式：
-{
-  "score": 75,
-  "issues": [
-    {
-      "type": "grammar|format|english|confirm",
-      "original": "元の表現（問題箇所）",
-      "fixed": "修正後の表現",
-      "reason": "修正理由（簡潔に）"
-    }
-  ],
-  "correctedText": "全体を修正したテキスト（元の構成を保ちつつ修正済み）",
-  "summary": "全体の評価コメント（2〜3文）"
-}
-
-typeの定義：
-- grammar: 日本語文法・表現の問題
-- format: フォーマット・構成の問題
-- english: 英語表記の大文字小文字・正式名称の問題
-- confirm: 数字・規模感が不足していて候補者に確認が必要な箇所
-
-重要ルール：
-- JSONのみ返す。前置き・説明文は不要。
-- issuesは重要な問題のみ最大15件。
-- scoreは0〜100点（文法・表現・フォーマットの完成度）。
-- 情報の創作・追加は絶対禁止。事実ベースのみ。`;
-
-  const userPrompt = `以下の職務経歴書をチェックしてください：\n\n${text}`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 4000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }]
-      })
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error?.message || `APIエラー: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const raw = data.content[0].text.trim();
-
-    // Parse JSON (strip markdown fences if any)
-    const jsonStr = raw.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
-    const result = JSON.parse(jsonStr);
-
+function toggleOption(label){const check=label.querySelector('.option-check');setTimeout(()=>{if(label.classList.contains('selected')){label.classList.remove('selected');check.textContent=''}else{label.classList.add('selected');check.textContent='✓'}},0)}
+function getSelectedOptions(){const cards=document.querySelectorAll('.option-card');const opts=[];cards.forEach((c,i)=>{if(c.classList.contains('selected'))opts.push(['日本語文法・表現チェック','フォーマット整形','英語表記の正規化','要確認コメント挿入'][i])});return opts}
+function switchTab(id,btn){document.querySelectorAll('.tab-content').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.getElementById('tab-'+id).classList.add('active');btn.classList.add('active')}
+function copyText(){const text=document.getElementById('correctedContent').innerText;navigator.clipboard.writeText(text).then(()=>{const btn=document.querySelector('.copy-btn');btn.textContent='✓ コピー完了';setTimeout(()=>btn.textContent='コピー',1800)})}
+async function runCheck(){
+  const text=document.getElementById('resumeText').value.trim();
+  if(!text){showError('職務経歴書のテキストを入力してください。');return}
+  const opts=getSelectedOptions();
+  if(!opts.length){showError('チェック項目を1つ以上選択してください。');return}
+  setLoading(true);hideError();
+  try{
+    const res=await fetch('/api/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,options:opts})});
+    const result=await res.json();
+    if(!res.ok)throw new Error(result.error||'エラーが発生しました');
     renderResults(result);
-
-  } catch (e) {
-    showError('エラー: ' + e.message);
-  } finally {
-    setLoading(false);
-  }
+  }catch(e){showError('エラー: '+e.message)}finally{setLoading(false)}
 }
-
-// ── Render ────────────────────────────────────────────────
-function renderResults(result) {
-  // Score
-  const score = result.score || 0;
-  const badge = document.getElementById('scoreBadge');
-  badge.textContent = score + '点';
-  badge.className = 'score-badge ' + (score >= 80 ? 'high' : score >= 60 ? 'mid' : 'low');
-
-  // Stats
-  const issues = result.issues || [];
-  const counts = { grammar: 0, format: 0, english: 0, confirm: 0 };
-  issues.forEach(i => { if (counts[i.type] !== undefined) counts[i.type]++; });
-
-  document.getElementById('statGrammar').textContent = counts.grammar;
-  document.getElementById('statFormat').textContent = counts.format;
-  document.getElementById('statEnglish').textContent = counts.english;
-  document.getElementById('statConfirm').textContent = counts.confirm;
-
-  // Issues list
-  const list = document.getElementById('issuesList');
-  list.innerHTML = '';
-
-  if (issues.length === 0) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">✦</div>問題は見つかりませんでした</div>';
-  } else {
-    const typeLabels = { grammar: '文法・表現', format: 'フォーマット', english: '英語表記', confirm: '要確認' };
-    issues.forEach((issue, idx) => {
-      const card = document.createElement('div');
-      card.className = `issue-card ${issue.type}`;
-      card.style.animationDelay = (idx * 0.05) + 's';
-      card.innerHTML = `
-        <div class="issue-type">${typeLabels[issue.type] || issue.type}</div>
-        ${issue.original ? `<div class="issue-original">修正前：${issue.original}</div>` : ''}
-        ${issue.fixed ? `<div class="issue-fixed">→ ${issue.fixed}</div>` : ''}
-        <div class="issue-reason">${issue.reason}</div>
-      `;
+function renderResults(result){
+  const score=result.score||0;
+  const badge=document.getElementById('scoreBadge');
+  badge.textContent=score+'点';
+  badge.className='score-badge '+(score>=80?'high':score>=60?'mid':'low');
+  const issues=result.issues||[];
+  const counts={grammar:0,format:0,english:0,confirm:0};
+  issues.forEach(i=>{if(counts[i.type]!==undefined)counts[i.type]++});
+  document.getElementById('statGrammar').textContent=counts.grammar;
+  document.getElementById('statFormat').textContent=counts.format;
+  document.getElementById('statEnglish').textContent=counts.english;
+  document.getElementById('statConfirm').textContent=counts.confirm;
+  const list=document.getElementById('issuesList');
+  list.innerHTML='';
+  if(!issues.length){list.innerHTML='<div class="empty-state"><div style="font-size:40px;margin-bottom:12px">✦</div>問題は見つかりませんでした</div>'}
+  else{
+    const labels={grammar:'文法・表現',format:'フォーマット',english:'英語表記',confirm:'要確認'};
+    issues.forEach((issue,idx)=>{
+      const card=document.createElement('div');
+      card.className='issue-card '+issue.type;
+      card.style.animationDelay=(idx*0.05)+'s';
+      card.innerHTML=`<div class="issue-type">${labels[issue.type]||issue.type}</div>${issue.original?`<div class="issue-original">修正前：${issue.original}</div>`:''}${issue.fixed?`<div class="issue-fixed">→ ${issue.fixed}</div>`:''}<div class="issue-reason">${issue.reason}</div>`;
       list.appendChild(card);
     });
   }
-
-  // Corrected text
-  const corrected = document.getElementById('correctedContent');
-  corrected.textContent = result.correctedText || '（修正済みテキストなし）';
-
-  // Show results
-  const wrap = document.getElementById('resultsWrap');
-  wrap.style.display = 'block';
-  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('correctedContent').textContent=result.correctedText||'（修正済みテキストなし）';
+  const wrap=document.getElementById('resultsWrap');
+  wrap.style.display='block';
+  wrap.scrollIntoView({behavior:'smooth',block:'start'});
 }
-
-// ── UI Helpers ────────────────────────────────────────────
-function setLoading(on) {
-  const btn = document.getElementById('runBtn');
-  const spinner = document.getElementById('spinner');
-  const text = document.getElementById('runBtnText');
-  btn.disabled = on;
-  spinner.style.display = on ? 'block' : 'none';
-  text.textContent = on ? 'AIが分析中...' : '✦ AI チェックを実行';
-}
-
-function showError(msg) {
-  const box = document.getElementById('errorBox');
-  box.textContent = '⚠ ' + msg;
-  box.style.display = 'block';
-}
-
-function hideError() {
-  document.getElementById('errorBox').style.display = 'none';
-}
+function setLoading(on){document.getElementById('spinner').style.display=on?'block':'none';document.getElementById('runBtnText').textContent=on?'AIが分析中...':'✦ AI チェックを実行';document.getElementById('runBtn').disabled=on}
+function showError(msg){const box=document.getElementById('errorBox');box.textContent='⚠ '+msg;box.style.display='block'}
+function hideError(){document.getElementById('errorBox').style.display='none'}
 </script>
 </body>
 </html>
