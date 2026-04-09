@@ -22,7 +22,6 @@
   --ai-bubble: #2d3039;
   --success: #4caf7d;
   --danger: #e05c5c;
-  --shadow: 0 2px 12px rgba(0,0,0,0.3);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -32,6 +31,7 @@ body {
   background: var(--bg);
   color: var(--text);
   height: 100vh;
+  height: 100dvh;
   display: flex;
   overflow: hidden;
   font-size: 14px;
@@ -46,8 +46,9 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  transition: transform 0.25s ease;
+  height: 100dvh;
   z-index: 100;
+  transition: transform 0.25s ease;
 }
 
 .sidebar-header {
@@ -91,6 +92,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 6px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .projects-list::-webkit-scrollbar { width: 3px; }
@@ -144,8 +146,7 @@ body {
   margin-top: 1px;
 }
 
-.project-actions { display: flex; gap: 2px; opacity: 0; transition: opacity 0.12s; }
-.project-item:hover .project-actions { opacity: 1; }
+.project-actions { display: flex; gap: 2px; flex-shrink: 0; }
 
 .icon-btn {
   background: none;
@@ -174,7 +175,7 @@ body {
 
 .status-dot { width: 6px; height: 6px; background: var(--success); border-radius: 50%; }
 
-/* ── MOBILE OVERLAY ── */
+/* ── OVERLAY ── */
 .sidebar-overlay {
   display: none;
   position: fixed;
@@ -182,6 +183,7 @@ body {
   background: rgba(0,0,0,0.5);
   z-index: 99;
 }
+.sidebar-overlay.open { display: block; }
 
 /* ── MAIN ── */
 .main {
@@ -189,6 +191,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   min-width: 0;
 }
@@ -208,7 +211,6 @@ body {
 .topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
 .menu-btn {
-  display: none;
   background: none;
   border: none;
   color: var(--text2);
@@ -217,6 +219,7 @@ body {
   padding: 2px 6px;
   border-radius: 4px;
   flex-shrink: 0;
+  display: none;
 }
 
 .menu-btn:hover { background: var(--surface2); }
@@ -259,6 +262,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chat-area::-webkit-scrollbar { width: 3px; }
@@ -306,8 +310,10 @@ body {
 .message.user .avatar { background: var(--accent); color: white; }
 .message.ai .avatar { background: var(--surface3); color: var(--text2); border: 1px solid var(--border); font-size: 12px; }
 
+.bubble-wrap { display: flex; flex-direction: column; max-width: 75%; }
+.message.user .bubble-wrap { align-items: flex-end; }
+
 .bubble {
-  max-width: 75%;
   padding: 9px 13px;
   border-radius: 10px;
   font-size: 13px;
@@ -330,22 +336,28 @@ body {
   border-radius: 3px 10px 10px 10px;
 }
 
-.bubble-actions { display: flex; gap: 4px; margin-top: 4px; opacity: 0; transition: opacity 0.12s; }
-.message:hover .bubble-actions { opacity: 1; }
+/* コピーボタン：常時表示 */
+.bubble-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+  padding: 0 2px;
+}
 
 .bubble-action-btn {
-  background: none;
+  background: var(--surface2);
   border: 1px solid var(--border);
   color: var(--text3);
   font-size: 10px;
   cursor: pointer;
-  padding: 2px 7px;
+  padding: 3px 9px;
   border-radius: 4px;
   transition: all 0.12s;
   font-family: 'DM Mono', monospace;
 }
 
-.bubble-action-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--surface2); }
+.bubble-action-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--surface3); }
+.bubble-action-btn.copied { border-color: var(--success); color: var(--success); background: rgba(76,175,125,0.08); }
 
 .thinking { display: flex; gap: 4px; align-items: center; }
 .thinking span {
@@ -372,6 +384,39 @@ body {
 
 .input-inner { max-width: 720px; margin: 0 auto; }
 
+/* PDF preview bar */
+.pdf-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.pdf-preview-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pdf-remove-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 2px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.pdf-remove-btn:hover { color: var(--danger); }
+
 .input-wrap {
   display: flex;
   gap: 8px;
@@ -384,6 +429,21 @@ body {
 }
 
 .input-wrap:focus-within { border-color: var(--accent); }
+
+.pdf-btn {
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 3px;
+  border-radius: 4px;
+  transition: all 0.12s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.pdf-btn:hover { color: var(--accent); background: var(--accent-light); }
+.pdf-btn.active { color: var(--accent); }
 
 .chat-input {
   flex: 1;
@@ -418,6 +478,8 @@ body {
 .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
 .input-hint { text-align: center; font-size: 10px; color: var(--text3); margin-top: 5px; font-family: 'DM Mono', monospace; }
+
+#pdfFileInput { display: none; }
 
 /* ── NO PROJECT ── */
 .no-project {
@@ -454,7 +516,6 @@ body {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
-
 .loading-text { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; }
 
 /* ── MODAL ── */
@@ -480,9 +541,7 @@ body {
 }
 
 .modal-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--text); }
-
 .form-group { margin-bottom: 12px; }
-
 .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
 
 .form-input, .form-textarea {
@@ -511,7 +570,6 @@ body {
 .btn-ghost:hover { color: var(--text); background: var(--surface2); }
 
 .emoji-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 4px; }
-
 .emoji-opt {
   width: 28px; height: 28px;
   border-radius: 5px;
@@ -522,7 +580,6 @@ body {
   display: flex; align-items: center; justify-content: center;
   transition: all 0.12s;
 }
-
 .emoji-opt:hover { border-color: var(--accent); background: var(--accent-light); }
 .emoji-opt.selected { border-color: var(--accent); background: var(--accent-light); }
 
@@ -532,31 +589,27 @@ body {
     position: fixed;
     top: 0; left: 0;
     height: 100vh;
+    height: 100dvh;
     transform: translateX(-100%);
+    box-shadow: 4px 0 20px rgba(0,0,0,0.5);
   }
-
   .sidebar.open { transform: translateX(0); }
-  .sidebar-overlay.open { display: block; }
-  .menu-btn { display: flex; }
-  .bubble { max-width: 85%; }
+  .menu-btn { display: flex !important; }
+  .bubble-wrap { max-width: 88%; }
   .input-hint { display: none; }
-
   .topbar-btn span { display: none; }
 }
 </style>
 </head>
 <body>
 
-<!-- Loading -->
 <div class="loading-overlay" id="loadingOverlay">
   <div class="loading-spinner"></div>
   <div class="loading-text">読み込み中...</div>
 </div>
 
-<!-- Sidebar Overlay -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-<!-- Sidebar -->
 <div class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="app-title">
@@ -572,7 +625,6 @@ body {
   </div>
 </div>
 
-<!-- Main -->
 <div class="main" id="mainArea">
   <div class="no-project">
     <div class="no-project-icon">✦</div>
@@ -581,7 +633,6 @@ body {
   </div>
 </div>
 
-<!-- Modal -->
 <div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModalOutside(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-title" id="modalTitle">新しいプロジェクト</div>
@@ -609,6 +660,8 @@ body {
   </div>
 </div>
 
+<input type="file" id="pdfFileInput" accept=".pdf" onchange="handlePdfSelect(event)">
+
 <script>
 const GENERAL_ID = '__general__';
 const EMOJIS = ['💬','📧','📄','📋','🔍','✍️','📊','🤝','💼','🎯','⚡','🌐','📝','🗂️','💡','🧠','🗣️','📨'];
@@ -618,22 +671,19 @@ let currentProjectId = null;
 let editingProjectId = null;
 let selectedEmoji = '💬';
 let isLoading = false;
+let pendingPdf = null;
 
-// ── Init ──────────────────────────────────────────────────────────────
 async function init() {
   await loadProjects();
   document.getElementById('loadingOverlay').style.display = 'none';
   renderSidebar();
 }
 
-// ── Projects API ──────────────────────────────────────────────────────
 async function loadProjects() {
   try {
     const res = await fetch('/api/projects');
     if (res.ok) projects = await res.json();
-  } catch(e) {
-    projects = [];
-  }
+  } catch(e) { projects = []; }
 }
 
 async function createProject(data) {
@@ -657,7 +707,6 @@ async function deleteProjectAPI(id) {
   await fetch(`/api/projects?id=${id}`, { method: 'DELETE' });
 }
 
-// ── Sidebar ──────────────────────────────────────────────────────────
 function renderSidebar() {
   const list = document.getElementById('projectsList');
   let html = `<div class="section-label">チャット</div>
@@ -678,8 +727,8 @@ function renderSidebar() {
         <div class="project-info">
           <div class="project-emoji">${p.emoji||'💬'}</div>
           <div class="project-text">
-            <div class="project-name">${p.name}</div>
-            ${p.description?`<div class="project-desc">${p.description}</div>`:''}
+            <div class="project-name">${escapeHtml(p.name)}</div>
+            ${p.description?`<div class="project-desc">${escapeHtml(p.description)}</div>`:''}
           </div>
         </div>
         <div class="project-actions">
@@ -693,6 +742,7 @@ function renderSidebar() {
 
 function selectProject(id) {
   currentProjectId = id;
+  pendingPdf = null;
   renderSidebar();
   renderChatArea();
   closeSidebar();
@@ -707,7 +757,6 @@ async function confirmDelete(id) {
   renderSidebar();
 }
 
-// ── Mobile ───────────────────────────────────────────────────────────
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');
   document.getElementById('sidebarOverlay').classList.toggle('open');
@@ -718,7 +767,6 @@ function closeSidebar() {
   document.getElementById('sidebarOverlay').classList.remove('open');
 }
 
-// ── Modal ─────────────────────────────────────────────────────────────
 function initEmojiPicker() {
   document.getElementById('emojiPicker').innerHTML = EMOJIS.map(e =>
     `<div class="emoji-opt ${e===selectedEmoji?'selected':''}" onclick="selectEmoji('${e}')">${e}</div>`).join('');
@@ -785,6 +833,47 @@ async function saveProject() {
   }
 }
 
+// ── PDF ───────────────────────────────────────────────────────────────
+function triggerPdfUpload() {
+  document.getElementById('pdfFileInput').click();
+}
+
+function handlePdfSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 10 * 1024 * 1024) { alert('PDFは10MB以下にしてください'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const base64 = e.target.result.split(',')[1];
+    pendingPdf = { name: file.name, base64 };
+    renderPdfPreview();
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function renderPdfPreview() {
+  const existing = document.getElementById('pdfPreviewBar');
+  if (existing) existing.remove();
+  if (!pendingPdf) return;
+  const inputInner = document.querySelector('.input-inner');
+  const preview = document.createElement('div');
+  preview.className = 'pdf-preview';
+  preview.id = 'pdfPreviewBar';
+  preview.innerHTML = `<span>📄</span><span class="pdf-preview-name">${escapeHtml(pendingPdf.name)}</span><button class="pdf-remove-btn" onclick="removePdf()">✕</button>`;
+  inputInner.insertBefore(preview, inputInner.firstChild);
+  const pdfBtn = document.getElementById('pdfBtn');
+  if (pdfBtn) pdfBtn.classList.add('active');
+}
+
+function removePdf() {
+  pendingPdf = null;
+  const bar = document.getElementById('pdfPreviewBar');
+  if (bar) bar.remove();
+  const pdfBtn = document.getElementById('pdfBtn');
+  if (pdfBtn) pdfBtn.classList.remove('active');
+}
+
 // ── Chat ──────────────────────────────────────────────────────────────
 function getMessages() { return JSON.parse(localStorage.getItem(`chat_${currentProjectId}`) || '[]'); }
 function saveMessages(msgs) { localStorage.setItem(`chat_${currentProjectId}`, JSON.stringify(msgs)); }
@@ -811,7 +900,7 @@ function renderChatArea() {
       <div class="topbar-left">
         <button class="menu-btn" onclick="toggleSidebar()">☰</button>
         <div class="current-emoji">${p.emoji||'💬'}</div>
-        <div class="current-name">${p.name}</div>
+        <div class="current-name">${escapeHtml(p.name)}</div>
       </div>
       <div class="topbar-actions">
         ${!isGeneral ? `<button class="topbar-btn primary" onclick="openEditModal('${p.id}')">⚙ <span>Prompt</span></button>` : ''}
@@ -822,12 +911,13 @@ function renderChatArea() {
     <div class="input-area">
       <div class="input-inner">
         <div class="input-wrap">
+          <button class="pdf-btn" id="pdfBtn" onclick="triggerPdfUpload()" title="PDFをアップロード">📎</button>
           <textarea class="chat-input" id="chatInput"
             placeholder="メッセージを入力..."
             rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
         </div>
-        <div class="input-hint">Shift+Enter で送信 · Enter で改行</div>
+        <div class="input-hint">Shift+Enter で送信 · Enter で改行 · 📎 でPDF添付</div>
       </div>
     </div>`;
 
@@ -844,19 +934,19 @@ function renderMessages() {
     const p = isGeneral ? { emoji:'💬', name:'汎用チャット', description:'何でも聞いてください' } : projects.find(x => x.id === currentProjectId);
     chatArea.innerHTML = `<div class="empty-state">
       <div class="empty-icon">${p?.emoji||'💬'}</div>
-      <div class="empty-title">${p?.name||''}</div>
-      <div class="empty-desc">${p?.description||'メッセージを入力して会話を始めましょう'}</div>
+      <div class="empty-title">${escapeHtml(p?.name||'')}</div>
+      <div class="empty-desc">${escapeHtml(p?.description||'メッセージを入力して会話を始めましょう')}</div>
     </div>`;
     return;
   }
   chatArea.innerHTML = msgs.map((m, i) => `
     <div class="message ${m.role}">
       <div class="avatar">${m.role==='user'?'Z':'✦'}</div>
-      <div>
+      <div class="bubble-wrap">
         <div class="bubble">${escapeHtml(m.content)}</div>
         <div class="bubble-actions">
-          <button class="bubble-action-btn" onclick="copyMsg(${i})">コピー</button>
-          ${m.role==='ai'?`<button class="bubble-action-btn" onclick="regenMsg(${i})">再生成</button>`:''}
+          <button class="bubble-action-btn" id="copybtn-${i}" onclick="copyMsg(${i})">📋 コピー</button>
+          ${m.role==='ai'?`<button class="bubble-action-btn" onclick="regenMsg(${i})">↺ 再生成</button>`:''}
         </div>
       </div>
     </div>`).join('');
@@ -864,7 +954,8 @@ function renderMessages() {
 }
 
 function escapeHtml(t) {
-  return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  if (!t) return '';
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function clearChat() {
@@ -873,7 +964,19 @@ function clearChat() {
   renderMessages();
 }
 
-function copyMsg(i) { navigator.clipboard.writeText(getMessages()[i]?.content || ''); }
+function copyMsg(i) {
+  const text = getMessages()[i]?.content || '';
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById(`copybtn-${i}`);
+    if (!btn) return;
+    btn.textContent = '✓ コピー済み';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 コピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
 
 async function regenMsg(i) {
   const msgs = getMessages().slice(0, i);
@@ -894,16 +997,21 @@ async function sendMessage() {
   const input = document.getElementById('chatInput');
   if (!input) return;
   const text = input.value.trim();
-  if (!text || isLoading) return;
+  if ((!text && !pendingPdf) || isLoading) return;
+
   const msgs = getMessages();
-  msgs.push({ role:'user', content:text });
+  const displayText = pendingPdf ? `[PDF: ${pendingPdf.name}]\n${text}` : text;
+  msgs.push({ role:'user', content: displayText });
   saveMessages(msgs);
   input.value = ''; input.style.height = 'auto';
+
+  const pdfToSend = pendingPdf;
+  removePdf();
   renderMessages();
-  await callAPI(msgs);
+  await callAPI(msgs, pdfToSend);
 }
 
-async function callAPI(msgs) {
+async function callAPI(msgs, pdfData = null) {
   isLoading = true;
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) sendBtn.disabled = true;
@@ -912,7 +1020,7 @@ async function callAPI(msgs) {
   if (chatArea) {
     const t = document.createElement('div');
     t.className = 'message ai'; t.id = 'thinkingMsg';
-    t.innerHTML = `<div class="avatar">✦</div><div class="bubble"><div class="thinking"><span></span><span></span><span></span></div></div>`;
+    t.innerHTML = `<div class="avatar">✦</div><div class="bubble-wrap"><div class="bubble"><div class="thinking"><span></span><span></span><span></span></div></div></div>`;
     chatArea.appendChild(t);
     chatArea.scrollTop = chatArea.scrollHeight;
   }
@@ -920,22 +1028,36 @@ async function callAPI(msgs) {
   try {
     const isGeneral = currentProjectId === GENERAL_ID;
     const p = isGeneral ? null : projects.find(x => x.id === currentProjectId);
+
+    const apiMessages = msgs.map((m, idx) => {
+      const role = m.role === 'ai' ? 'assistant' : 'user';
+      if (pdfData && idx === msgs.length - 1 && m.role === 'user') {
+        const textContent = m.content.replace(`[PDF: ${pdfData.name}]\n`, '').trim();
+        const content = [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfData.base64 } },
+          { type: 'text', text: textContent || 'このPDFを読んで内容を把握してください。' }
+        ];
+        return { role, content };
+      }
+      return { role, content: m.content };
+    });
+
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemPrompt: p?.prompt || '',
-        messages: msgs.map(m => ({ role: m.role==='ai'?'assistant':'user', content: m.content }))
+        messages: apiMessages
       })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'エラーが発生しました');
     const allMsgs = getMessages();
-    allMsgs.push({ role:'ai', content:data.content });
+    allMsgs.push({ role:'ai', content: data.content });
     saveMessages(allMsgs);
   } catch(e) {
     const allMsgs = getMessages();
-    allMsgs.push({ role:'ai', content:'⚠ エラー: '+e.message });
+    allMsgs.push({ role:'ai', content:'⚠ エラー: ' + e.message });
     saveMessages(allMsgs);
   } finally {
     document.getElementById('thinkingMsg')?.remove();
