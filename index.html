@@ -914,17 +914,31 @@ function renderMarkdown(text) {
   return escapeHtml(text).replace(/\n/g, '<br>');
 }
 
-// Outlook対応コピー
+// Outlook対応コピー（確実に動く方法）
 function copyAsRichText(text) {
+  // まずプレーンテキストでコピー（確実に動く）
+  const plainCopy = () => navigator.clipboard.writeText(text);
+
+  // ClipboardItem対応チェック
+  if (!window.ClipboardItem) return plainCopy();
+
   try {
-    const html = typeof marked !== 'undefined' ? marked.parse(text) : text.replace(/\n/g, '<br>');
-    const item = new ClipboardItem({
-      'text/html': new Blob([html], { type: 'text/html' }),
-      'text/plain': new Blob([text], { type: 'text/plain' })
-    });
-    return navigator.clipboard.write([item]);
+    const html = typeof marked !== 'undefined'
+      ? marked.parse(text)
+      : text.replace(/\n/g, '<br>');
+
+    // Blobを先に作成してからClipboardItemに渡す
+    const htmlBlob = new Blob([html], { type: 'text/html' });
+    const textBlob = new Blob([text], { type: 'text/plain' });
+
+    return navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': htmlBlob,
+        'text/plain': textBlob
+      })
+    ]).catch(() => plainCopy());
   } catch(e) {
-    return navigator.clipboard.writeText(text);
+    return plainCopy();
   }
 }
 
