@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Zoe's AI Assistant</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<!-- marked.js for Markdown rendering -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <style>
 :root {
   --bg: #1e2027;
@@ -318,7 +320,6 @@ body {
   border-radius: 10px;
   font-size: 13px;
   line-height: 1.75;
-  white-space: pre-wrap;
   word-break: break-word;
 }
 
@@ -327,6 +328,7 @@ body {
   color: #d4e0ff;
   border: 1px solid rgba(91,138,240,0.2);
   border-radius: 10px 3px 10px 10px;
+  white-space: pre-wrap;
 }
 
 .message.ai .bubble {
@@ -334,6 +336,64 @@ body {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 3px 10px 10px 10px;
+}
+
+/* Markdown styles inside AI bubble */
+.message.ai .bubble h1,
+.message.ai .bubble h2,
+.message.ai .bubble h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 10px 0 4px;
+  color: var(--text);
+}
+.message.ai .bubble p { margin: 4px 0; }
+.message.ai .bubble ul,
+.message.ai .bubble ol {
+  padding-left: 18px;
+  margin: 4px 0;
+}
+.message.ai .bubble li { margin: 2px 0; }
+.message.ai .bubble strong { color: #c8d8ff; font-weight: 700; }
+.message.ai .bubble em { opacity: 0.85; }
+.message.ai .bubble code {
+  background: var(--surface3);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+}
+.message.ai .bubble pre {
+  background: var(--surface3);
+  padding: 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 6px 0;
+}
+.message.ai .bubble pre code { background: none; padding: 0; }
+.message.ai .bubble hr {
+  border: none;
+  border-top: 1px solid var(--border2);
+  margin: 8px 0;
+}
+.message.ai .bubble table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6px 0;
+  font-size: 12px;
+}
+.message.ai .bubble th,
+.message.ai .bubble td {
+  border: 1px solid var(--border2);
+  padding: 5px 8px;
+  text-align: left;
+}
+.message.ai .bubble th { background: var(--surface3); font-weight: 600; }
+.message.ai .bubble blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+  color: var(--text2);
+  margin: 4px 0;
 }
 
 /* コピーボタン：常時表示 */
@@ -384,7 +444,7 @@ body {
 
 .input-inner { max-width: 720px; margin: 0 auto; }
 
-/* PDF preview bar */
+/* PDF preview */
 .pdf-preview {
   display: flex;
   align-items: center;
@@ -398,22 +458,10 @@ body {
   color: var(--text2);
 }
 
-.pdf-preview-name {
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+.pdf-preview-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pdf-remove-btn {
-  background: none;
-  border: none;
-  color: var(--text3);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0 2px;
-  flex-shrink: 0;
-  line-height: 1;
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; font-size: 14px; padding: 0 2px; flex-shrink: 0;
 }
 .pdf-remove-btn:hover { color: var(--danger); }
 
@@ -431,16 +479,9 @@ body {
 .input-wrap:focus-within { border-color: var(--accent); }
 
 .pdf-btn {
-  background: none;
-  border: none;
-  color: var(--text3);
-  font-size: 16px;
-  cursor: pointer;
-  padding: 2px 3px;
-  border-radius: 4px;
-  transition: all 0.12s;
-  flex-shrink: 0;
-  line-height: 1;
+  background: none; border: none; color: var(--text3);
+  font-size: 16px; cursor: pointer; padding: 2px 3px;
+  border-radius: 4px; transition: all 0.12s; flex-shrink: 0; line-height: 1;
 }
 .pdf-btn:hover { color: var(--accent); background: var(--accent-light); }
 .pdf-btn.active { color: var(--accent); }
@@ -463,17 +504,12 @@ body {
 
 .send-btn {
   background: var(--accent);
-  border: none;
-  color: white;
+  border: none; color: white;
   width: 28px; height: 28px;
-  border-radius: 6px;
-  cursor: pointer;
+  border-radius: 6px; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s;
-  flex-shrink: 0;
-  font-size: 12px;
+  transition: all 0.15s; flex-shrink: 0; font-size: 12px;
 }
-
 .send-btn:hover { background: #4a79e0; }
 .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 
@@ -483,30 +519,20 @@ body {
 
 /* ── NO PROJECT ── */
 .no-project {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 40px 20px;
-  text-align: center;
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; padding: 40px 20px; text-align: center;
 }
-
 .no-project-icon { font-size: 40px; opacity: 0.3; }
 .no-project h2 { font-size: 16px; font-weight: 600; color: var(--text); }
 .no-project p { font-size: 12px; line-height: 1.7; color: var(--text2); max-width: 260px; }
 
 /* ── LOADING ── */
 .loading-overlay {
-  position: fixed; inset: 0;
-  background: var(--bg);
+  position: fixed; inset: 0; background: var(--bg);
   display: flex; align-items: center; justify-content: center;
-  z-index: 200;
-  flex-direction: column;
-  gap: 12px;
+  z-index: 200; flex-direction: column; gap: 12px;
 }
-
 .loading-spinner {
   width: 28px; height: 28px;
   border: 2px solid var(--border2);
@@ -514,71 +540,43 @@ body {
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
-
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-text { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; }
 
 /* ── MODAL ── */
 .modal-overlay {
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.55);
+  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
   display: flex; align-items: center; justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(3px);
-  padding: 16px;
+  z-index: 1000; backdrop-filter: blur(3px); padding: 16px;
 }
-
 .modal {
-  background: var(--surface);
-  border: 1px solid var(--border2);
-  border-radius: 10px;
-  padding: 20px;
-  width: 100%;
-  max-width: 440px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-  max-height: 90vh;
-  overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 20px; width: 100%; max-width: 440px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4); max-height: 90vh; overflow-y: auto;
 }
-
 .modal-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: var(--text); }
 .form-group { margin-bottom: 12px; }
 .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 4px; }
-
 .form-input, .form-textarea {
-  width: 100%;
-  background: var(--surface2);
-  border: 1px solid var(--border2);
-  color: var(--text);
-  font-family: 'Noto Sans JP', sans-serif;
-  font-size: 13px;
-  padding: 7px 10px;
-  border-radius: 6px;
-  outline: none;
-  transition: border-color 0.15s;
+  width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 13px;
+  padding: 7px 10px; border-radius: 6px; outline: none; transition: border-color 0.15s;
 }
-
 .form-input:focus, .form-textarea:focus { border-color: var(--accent); }
 .form-textarea { resize: vertical; min-height: 90px; line-height: 1.6; }
 .form-hint { font-size: 11px; color: var(--text3); margin-top: 3px; }
-
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
-
 .btn { padding: 7px 14px; border-radius: 6px; font-family: 'Noto Sans JP', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.12s; border: none; }
 .btn-primary { background: var(--accent); color: white; }
 .btn-primary:hover { background: #4a79e0; }
 .btn-ghost { background: none; border: 1px solid var(--border2); color: var(--text2); }
 .btn-ghost:hover { color: var(--text); background: var(--surface2); }
-
 .emoji-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 4px; }
 .emoji-opt {
-  width: 28px; height: 28px;
-  border-radius: 5px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.12s;
+  width: 28px; height: 28px; border-radius: 5px;
+  border: 1px solid var(--border); background: var(--surface2);
+  font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.12s;
 }
 .emoji-opt:hover { border-color: var(--accent); background: var(--accent-light); }
 .emoji-opt.selected { border-color: var(--accent); background: var(--accent-light); }
@@ -586,10 +584,8 @@ body {
 /* ── RESPONSIVE ── */
 @media (max-width: 640px) {
   .sidebar {
-    position: fixed;
-    top: 0; left: 0;
-    height: 100vh;
-    height: 100dvh;
+    position: fixed; top: 0; left: 0;
+    height: 100vh; height: 100dvh;
     transform: translateX(-100%);
     box-shadow: 4px 0 20px rgba(0,0,0,0.5);
   }
@@ -663,6 +659,11 @@ body {
 <input type="file" id="pdfFileInput" accept=".pdf" onchange="handlePdfSelect(event)">
 
 <script>
+// marked.js 設定
+if (typeof marked !== 'undefined') {
+  marked.setOptions({ breaks: true, gfm: true });
+}
+
 const GENERAL_ID = '__general__';
 const EMOJIS = ['💬','📧','📄','📋','🔍','✍️','📊','🤝','💼','🎯','⚡','🌐','📝','🗂️','💡','🧠','🗣️','📨'];
 
@@ -688,8 +689,7 @@ async function loadProjects() {
 
 async function createProject(data) {
   const res = await fetch('/api/projects', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
   return res.ok ? await res.json() : null;
@@ -697,8 +697,7 @@ async function createProject(data) {
 
 async function updateProject(id, data) {
   await fetch(`/api/projects?id=${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
 }
@@ -741,11 +740,8 @@ function renderSidebar() {
 }
 
 function selectProject(id) {
-  currentProjectId = id;
-  pendingPdf = null;
-  renderSidebar();
-  renderChatArea();
-  closeSidebar();
+  currentProjectId = id; pendingPdf = null;
+  renderSidebar(); renderChatArea(); closeSidebar();
 }
 
 async function confirmDelete(id) {
@@ -824,19 +820,15 @@ async function saveProject() {
       const newP = await createProject({ name, description, prompt, emoji: selectedEmoji });
       if (newP) { projects.push(newP); currentProjectId = newP.id; }
     }
-    renderSidebar();
-    renderChatArea();
-    hideModal();
+    renderSidebar(); renderChatArea(); hideModal();
   } finally {
     saveBtn.textContent = editingProjectId ? '保存' : '作成';
     saveBtn.disabled = false;
   }
 }
 
-// ── PDF ───────────────────────────────────────────────────────────────
-function triggerPdfUpload() {
-  document.getElementById('pdfFileInput').click();
-}
+// ── PDF ──────────────────────────────────────────────────────────────
+function triggerPdfUpload() { document.getElementById('pdfFileInput').click(); }
 
 function handlePdfSelect(event) {
   const file = event.target.files[0];
@@ -844,8 +836,7 @@ function handlePdfSelect(event) {
   if (file.size > 10 * 1024 * 1024) { alert('PDFは10MB以下にしてください'); return; }
   const reader = new FileReader();
   reader.onload = function(e) {
-    const base64 = e.target.result.split(',')[1];
-    pendingPdf = { name: file.name, base64 };
+    pendingPdf = { name: file.name, base64: e.target.result.split(',')[1] };
     renderPdfPreview();
   };
   reader.readAsDataURL(file);
@@ -858,8 +849,7 @@ function renderPdfPreview() {
   if (!pendingPdf) return;
   const inputInner = document.querySelector('.input-inner');
   const preview = document.createElement('div');
-  preview.className = 'pdf-preview';
-  preview.id = 'pdfPreviewBar';
+  preview.className = 'pdf-preview'; preview.id = 'pdfPreviewBar';
   preview.innerHTML = `<span>📄</span><span class="pdf-preview-name">${escapeHtml(pendingPdf.name)}</span><button class="pdf-remove-btn" onclick="removePdf()">✕</button>`;
   inputInner.insertBefore(preview, inputInner.firstChild);
   const pdfBtn = document.getElementById('pdfBtn');
@@ -917,12 +907,38 @@ function renderChatArea() {
             rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
         </div>
-        <div class="input-hint">Shift+Enter で送信 · Enter で改行 · 📎 でPDF添付</div>
+        <div class="input-hint">Enter で送信 · Shift+Enter で改行 · 📎 でPDF添付</div>
       </div>
     </div>`;
 
   renderMessages();
   document.getElementById('chatInput')?.focus();
+}
+
+// Markdown → HTML変換
+function renderMarkdown(text) {
+  if (typeof marked !== 'undefined') {
+    return marked.parse(text);
+  }
+  return escapeHtml(text).replace(/\n/g, '<br>');
+}
+
+// Outlook対応コピー（HTMLとプレーンテキスト両方）
+function copyAsRichText(text) {
+  try {
+    // HTMLに変換してクリップボードに入れる
+    const html = typeof marked !== 'undefined'
+      ? marked.parse(text)
+      : text.replace(/\n/g, '<br>');
+
+    const blob = new Blob([html], { type: 'text/html' });
+    const plainBlob = new Blob([text], { type: 'text/plain' });
+    const item = new ClipboardItem({ 'text/html': blob, 'text/plain': plainBlob });
+    return navigator.clipboard.write([item]);
+  } catch(e) {
+    // フォールバック：プレーンテキストでコピー
+    return navigator.clipboard.writeText(text);
+  }
 }
 
 function renderMessages() {
@@ -943,7 +959,7 @@ function renderMessages() {
     <div class="message ${m.role}">
       <div class="avatar">${m.role==='user'?'Z':'✦'}</div>
       <div class="bubble-wrap">
-        <div class="bubble">${escapeHtml(m.content)}</div>
+        <div class="bubble">${m.role==='ai' ? renderMarkdown(m.content) : escapeHtml(m.content)}</div>
         <div class="bubble-actions">
           <button class="bubble-action-btn" id="copybtn-${i}" onclick="copyMsg(${i})">📋 コピー</button>
           ${m.role==='ai'?`<button class="bubble-action-btn" onclick="regenMsg(${i})">↺ 再生成</button>`:''}
@@ -966,15 +982,12 @@ function clearChat() {
 
 function copyMsg(i) {
   const text = getMessages()[i]?.content || '';
-  navigator.clipboard.writeText(text).then(() => {
+  copyAsRichText(text).then(() => {
     const btn = document.getElementById(`copybtn-${i}`);
     if (!btn) return;
     btn.textContent = '✓ コピー済み';
     btn.classList.add('copied');
-    setTimeout(() => {
-      btn.textContent = '📋 コピー';
-      btn.classList.remove('copied');
-    }, 2000);
+    setTimeout(() => { btn.textContent = '📋 コピー'; btn.classList.remove('copied'); }, 2000);
   });
 }
 
@@ -984,8 +997,12 @@ async function regenMsg(i) {
   await callAPI(msgs);
 }
 
+// Enter→送信、Shift+Enter→改行
 function handleKey(e) {
-  if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); sendMessage(); }
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
 }
 
 function autoResize(el) {
@@ -1033,22 +1050,20 @@ async function callAPI(msgs, pdfData = null) {
       const role = m.role === 'ai' ? 'assistant' : 'user';
       if (pdfData && idx === msgs.length - 1 && m.role === 'user') {
         const textContent = m.content.replace(`[PDF: ${pdfData.name}]\n`, '').trim();
-        const content = [
-          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfData.base64 } },
-          { type: 'text', text: textContent || 'このPDFを読んで内容を把握してください。' }
-        ];
-        return { role, content };
+        return {
+          role,
+          content: [
+            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfData.base64 } },
+            { type: 'text', text: textContent || 'このPDFを読んで内容を把握してください。' }
+          ]
+        };
       }
       return { role, content: m.content };
     });
 
     const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        systemPrompt: p?.prompt || '',
-        messages: apiMessages
-      })
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ systemPrompt: p?.prompt || '', messages: apiMessages })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'エラーが発生しました');
