@@ -6,6 +6,12 @@
 <title>Zoe's AI Assistant</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }
+</script>
 <style>
 :root {
   --bg: #13151c;
@@ -813,27 +819,47 @@ async function saveProject() {
 // ── PDF ──────────────────────────────────────────────────────────────
 function triggerPdfUpload() { document.getElementById('pdfFileInput').click(); }
 
-function handlePdfSelect(event) {
+async function handlePdfSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
-  if (file.size > 10 * 1024 * 1024) { alert('PDFは10MB以下にしてください'); return; }
-  const reader = new FileReader();
-  reader.onload = e => {
-    pendingPdf = { name: file.name, base64: e.target.result.split(',')[1] };
+  if (file.size > 20 * 1024 * 1024) { alert('PDFは20MB以下にしてください'); return; }
+
+  // PDF読み込み中表示
+  pendingPdf = { name: file.name, text: null, loading: true };
+  renderPdfPreview('読み込み中...');
+
+  try {
+    // PDF.jsでテキスト抽出
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    let fullText = '';
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map(item => item.str).join(' ');
+      fullText += `\n--- ${i}ページ ---\n${pageText}`;
+    }
+
+    pendingPdf = { name: file.name, text: fullText.trim(), loading: false };
     renderPdfPreview();
-  };
-  reader.readAsDataURL(file);
+  } catch(e) {
+    alert('PDFの読み込みに失敗しました。テキストが含まれているPDFをお試しください。');
+    pendingPdf = null;
+    renderPdfPreview();
+  }
   event.target.value = '';
 }
 
-function renderPdfPreview() {
+function renderPdfPreview(statusText) {
   const existing = document.getElementById('pdfPreviewBar');
   if (existing) existing.remove();
   if (!pendingPdf) return;
   const inputInner = document.querySelector('.input-inner');
   const preview = document.createElement('div');
   preview.className = 'pdf-preview'; preview.id = 'pdfPreviewBar';
-  preview.innerHTML = `<span>📄</span><span class="pdf-preview-name">${escapeHtml(pendingPdf.name)}</span><button class="pdf-remove-btn" onclick="removePdf()">✕</button>`;
+  const label = statusText || (pendingPdf.loading ? '読み込み中...' : `${pendingPdf.name}`);
+  preview.innerHTML = `<span>📄</span><span class="pdf-preview-name">${escapeHtml(label)}</span><button class="pdf-remove-btn" onclick="removePdf()">✕</button>`;
   inputInner.insertBefore(preview, inputInner.firstChild);
   const btn = document.getElementById('pdfBtn');
   if (btn) btn.classList.add('active');
@@ -1043,6 +1069,12 @@ async function sendMessage() {
   const text = input.value.trim();
   if ((!text && !pendingPdf) || isLoading) return;
 
+  // PDFがまだ読み込み中の場合は待つ
+  if (pendingPdf && pendingPdf.loading) {
+    alert('PDFを読み込み中です。少し待ってから送信してください。');
+    return;
+  }
+
   const msgs = getMessages();
   const displayText = pendingPdf ? `[PDF: ${pendingPdf.name}]\n${text}` : text;
   msgs.push({ role:'user', content: displayText });
@@ -1061,6 +1093,8 @@ async function callAPI(msgs, pdfData = null) {
   if (sendBtn) sendBtn.disabled = true;
 
   const chatArea = document.getElementById('chatArea');
+
+  // thinking表示
   if (chatArea) {
     const t = document.createElement('div');
     t.className = 'message ai'; t.id = 'thinkingMsg';
@@ -1076,14 +1110,9 @@ async function callAPI(msgs, pdfData = null) {
     const apiMessages = msgs.map((m, idx) => {
       const role = m.role === 'ai' ? 'assistant' : 'user';
       if (pdfData && idx === msgs.length - 1 && m.role === 'user') {
-        const textContent = m.content.replace(`[PDF: ${pdfData.name}]\n`, '').trim();
-        return {
-          role,
-          content: [
-            { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfData.base64 } },
-            { type: 'text', text: textContent || 'このPDFを読んで内容を把握してください。' }
-          ]
-        };
+        const userText = m.content.replace(`[PDF: ${pdfData.name}]\n`, '').trim();
+        const combinedText = `以下は「${pdfData.name}」から抽出したテキストです：\n\n${pdfData.text}\n\n---\n${userText || 'このPDFの内容を把握してください。'}`;
+        return { role, content: combinedText };
       }
       return { role, content: m.content };
     });
@@ -1098,56 +1127,38 @@ async function callAPI(msgs, pdfData = null) {
       throw new Error(`HTTPエラー: ${res.status}`);
     }
 
-    // ストリーミング読み取り
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let fullContent = '';
-    let buffer = '';
-
-    // thinkingメッセージを削除してストリーミング表示用バブルを作成
+    // thinkingを削除してストリーミングバブルを作成
     document.getElementById('thinkingMsg')?.remove();
 
     const streamDiv = document.createElement('div');
     streamDiv.className = 'message ai';
     streamDiv.id = 'streamingMsg';
-    streamDiv.innerHTML = `<div class="avatar">✦</div><div class="bubble-wrap"><div class="bubble" id="streamingBubble"></div></div>`;
+    streamDiv.innerHTML = `<div class="avatar">✦</div><div class="bubble-wrap"><div class="bubble" id="streamingBubble"> </div></div>`;
     chatArea.appendChild(streamDiv);
+    chatArea.scrollTop = chatArea.scrollHeight;
+
+    // プレーンテキストストリームを読み取る
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullContent = '';
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+      const chunk = decoder.decode(value, { stream: true });
+      fullContent += chunk;
 
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const parsed = JSON.parse(line);
-          if (parsed.chunk) {
-            fullContent += parsed.chunk;
-            // リアルタイムでバブルを更新
-            const bubble = document.getElementById('streamingBubble');
-            if (bubble) {
-              const { main, memo } = splitMemo(fullContent);
-              bubble.innerHTML = renderMarkdown(main);
-              chatArea.scrollTop = chatArea.scrollHeight;
-            }
-          }
-          if (parsed.done) {
-            fullContent = parsed.content || fullContent;
-          }
-          if (parsed.error) {
-            throw new Error(parsed.error);
-          }
-        } catch(e) {
-          // パースエラーは無視
-        }
+      // リアルタイムでバブルを更新
+      const bubble = document.getElementById('streamingBubble');
+      if (bubble) {
+        const { main } = splitMemo(fullContent);
+        bubble.innerHTML = renderMarkdown(main);
+        chatArea.scrollTop = chatArea.scrollHeight;
       }
     }
 
-    // ストリーミング完了 → 正式なメッセージとして保存
+    // 完了 → 保存
     document.getElementById('streamingMsg')?.remove();
     const allMsgs = getMessages();
     allMsgs.push({ role: 'ai', content: fullContent });
