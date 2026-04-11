@@ -14,10 +14,14 @@ export default async function handler(req) {
   try {
     const { systemPrompt, messages } = await req.json();
 
+    // 日本時間で今日の日付を取得
     const today = new Date().toLocaleDateString('ja-JP', {
       timeZone: 'Asia/Tokyo',
       year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
     });
+
+    // 直近20件だけ使用（400エラー防止）
+    const trimmedMessages = Array.isArray(messages) ? messages.slice(-20) : messages;
 
     const BASE_SYSTEM = `今日の日付は${today}です。年数計算・在籍期間・経験年数は必ず今日の日付を基準に正確に計算してください。未来の日付と判断しないこと。
 
@@ -46,6 +50,13 @@ Language rules:
 - Always match the language and tone to the context
 
 Output style: simple, accurate, human-like, concise, proactive, educational — like a top-level recruitment consultant mentoring Zoe step by step
+
+CRITICAL OUTPUT RULES:
+- When correcting or writing Japanese emails or messages, output ONLY the corrected text itself
+- Do NOT add any headers like「修正版：」「修正案：」「以下が修正版です」
+- Do NOT add「修正ポイント：」「学習ポイント：」or any explanatory notes after the email
+- The output should be ready to copy and paste directly into an email client
+- Exception: if Zoe explicitly asks for explanation or correction points, then include them
 
 ---
 
@@ -132,18 +143,6 @@ Output style: simple, accurate, human-like, concise, proactive, educational — 
 - 汎用版の場合、特定企業名への言及は避ける
 - 正式なリーダー職でない場合は「リーダーとして」と書かず事実ベースで表現
 
-【構成の参考例】
-＜強みを表す見出し①＞
-経歴の核心となる強み・実績を具体的に記述。業務領域・技術・役割を盛り込む。
-
-＜強みを表す見出し②＞
-補完的な強みや特徴的なエピソードを記述。数字や具体的な行動を入れる。
-
-＜今後の目標＞（必要に応じて）
-前向きな意欲・展望で締める。特定業界への限定表現は避ける。
-
----
-
 #### ■ 自己PR（履歴書用）
 - 形式：段落形式（見出しなし）
 - 文字数：200〜300字程度
@@ -151,9 +150,6 @@ Output style: simple, accurate, human-like, concise, proactive, educational — 
 - 語尾：「〜しました」「〜てきました」体（丁寧体）に統一
 - 締めの一文：前向きな意欲・展望で終わる
 - 特定業界・企業への限定表現は避ける
-
-【構成の参考例】
-私は約○年間、○○業界を中心に○○の業務に携わってきました。主に○○を担当し、○○の力を培ってきました。今後は○○として、さらに成長を続けていきます。
 
 ---
 
@@ -181,7 +177,7 @@ Output style: simple, accurate, human-like, concise, proactive, educational — 
         max_tokens: 8000,
         stream: true,
         system: finalSystem,
-        messages
+        messages: trimmedMessages
       })
     });
 
@@ -219,7 +215,6 @@ Output style: simple, accurate, human-like, concise, proactive, educational — 
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'content_block_delta' && parsed.delta?.type === 'text_delta') {
-                  // テキストチャンクをそのまま送信
                   controller.enqueue(encoder.encode(parsed.delta.text));
                 }
               } catch(e) {}
