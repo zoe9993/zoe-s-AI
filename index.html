@@ -1089,20 +1089,77 @@ async function callAPI(msgs, pdfData = null) {
     });
 
     const res = await fetch('/api/chat', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ systemPrompt: p?.prompt || '', messages: apiMessages })
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'エラーが発生しました');
+
+    if (!res.ok) {
+      throw new Error(`HTTPエラー: ${res.status}`);
+    }
+
+    // ストリーミング読み取り
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let fullContent = '';
+    let buffer = '';
+
+    // thinkingメッセージを削除してストリーミング表示用バブルを作成
+    document.getElementById('thinkingMsg')?.remove();
+
+    const streamDiv = document.createElement('div');
+    streamDiv.className = 'message ai';
+    streamDiv.id = 'streamingMsg';
+    streamDiv.innerHTML = `<div class="avatar">✦</div><div class="bubble-wrap"><div class="bubble" id="streamingBubble"></div></div>`;
+    chatArea.appendChild(streamDiv);
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const parsed = JSON.parse(line);
+          if (parsed.chunk) {
+            fullContent += parsed.chunk;
+            // リアルタイムでバブルを更新
+            const bubble = document.getElementById('streamingBubble');
+            if (bubble) {
+              const { main, memo } = splitMemo(fullContent);
+              bubble.innerHTML = renderMarkdown(main);
+              chatArea.scrollTop = chatArea.scrollHeight;
+            }
+          }
+          if (parsed.done) {
+            fullContent = parsed.content || fullContent;
+          }
+          if (parsed.error) {
+            throw new Error(parsed.error);
+          }
+        } catch(e) {
+          // パースエラーは無視
+        }
+      }
+    }
+
+    // ストリーミング完了 → 正式なメッセージとして保存
+    document.getElementById('streamingMsg')?.remove();
     const allMsgs = getMessages();
-    allMsgs.push({ role:'ai', content: data.content });
+    allMsgs.push({ role: 'ai', content: fullContent });
     saveMessages(allMsgs);
+
   } catch(e) {
+    document.getElementById('thinkingMsg')?.remove();
+    document.getElementById('streamingMsg')?.remove();
     const allMsgs = getMessages();
-    allMsgs.push({ role:'ai', content:'⚠ エラー: ' + e.message });
+    allMsgs.push({ role: 'ai', content: '⚠ エラー: ' + e.message });
     saveMessages(allMsgs);
   } finally {
-    document.getElementById('thinkingMsg')?.remove();
     isLoading = false;
     if (sendBtn) sendBtn.disabled = false;
     renderMessages();
