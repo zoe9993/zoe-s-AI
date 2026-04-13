@@ -631,6 +631,13 @@ body {
   /* その他 */
   .input-hint { display: none; }
   .topbar-btn span { display: none; }
+
+  /* キーボード表示時のレイアウト崩れ防止 */
+  .chat-area { padding: 12px 12px; min-height: 0; }
+  .input-area { padding: 6px 12px 10px; }
+
+  /* キーボード表示中（input focus時）はモデル選択バーを隠してスペース確保 */
+  .input-area:focus-within .model-selector { display: none; }
 }
 </style>
 </head>
