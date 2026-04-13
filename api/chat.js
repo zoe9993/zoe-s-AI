@@ -39,10 +39,24 @@ function toPlainStream(res, extractText) {
   return new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
 }
 
-// ── Claude Sonnet 4 (Anthropic) ──────────────────────────────────────
-async function callClaude(finalSystem, messages) {
+// ── Claude Sonnet 4.6 (Anthropic) ──────────────────────────────────────
+async function callClaude(finalSystem, messages, imageData) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return errorResponse('ANTHROPIC_API_KEYが設定されていません');
+
+  const claudeMessages = messages.map((m, idx) => {
+    const role = m.role === 'assistant' ? 'assistant' : 'user';
+    if (imageData && idx === messages.length - 1 && role === 'user') {
+      return {
+        role,
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: imageData.mimeType, data: imageData.base64 } },
+          { type: 'text', text: m.content }
+        ]
+      };
+    }
+    return { role, content: m.content };
+  });
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -56,7 +70,7 @@ async function callClaude(finalSystem, messages) {
       max_tokens: 8000,
       stream: true,
       system: finalSystem,
-      messages
+      messages: claudeMessages
     })
   });
 
@@ -70,17 +84,26 @@ async function callClaude(finalSystem, messages) {
   );
 }
 
-// ── GPT-5.3 (OpenAI) ─────────────────────────────────────────────────
-async function callOpenAI(finalSystem, messages) {
+// ── GPT-4o (OpenAI) ─────────────────────────────────────────────────
+async function callOpenAI(finalSystem, messages, imageData) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return errorResponse('OPENAI_API_KEYが設定されていません');
 
   const openaiMessages = [
     { role: 'system', content: finalSystem },
-    ...messages.map(m => ({
-      role: m.role === 'assistant' ? 'assistant' : 'user',
-      content: m.content
-    }))
+    ...messages.map((m, idx) => {
+      const role = m.role === 'assistant' ? 'assistant' : 'user';
+      if (imageData && idx === messages.length - 1 && role === 'user') {
+        return {
+          role,
+          content: [
+            { type: 'image_url', image_url: { url: `data:${imageData.mimeType};base64,${imageData.base64}` } },
+            { type: 'text', text: m.content }
+          ]
+        };
+      }
+      return { role, content: m.content };
+    })
   ];
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -106,14 +129,23 @@ async function callOpenAI(finalSystem, messages) {
 }
 
 // ── Gemini 2.5 Flash (Google) ─────────────────────────────────────────
-async function callGemini(finalSystem, messages) {
+async function callGemini(finalSystem, messages, imageData) {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) return errorResponse('GOOGLE_API_KEYが設定されていません');
 
-  const contents = messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
-    parts: [{ text: m.content }]
-  }));
+  const contents = messages.map((m, idx) => {
+    const role = m.role === 'assistant' ? 'model' : 'user';
+    if (imageData && idx === messages.length - 1 && role === 'user') {
+      return {
+        role,
+        parts: [
+          { inlineData: { mimeType: imageData.mimeType, data: imageData.base64 } },
+          { text: m.content }
+        ]
+      };
+    }
+    return { role, parts: [{ text: m.content }] };
+  });
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${apiKey}&alt=sse`,
@@ -143,7 +175,7 @@ export default async function handler(req) {
   }
 
   try {
-    const { systemPrompt, messages, model = 'claude-sonnet-4' } = await req.json();
+    const { systemPrompt, messages, model = 'claude-sonnet-4', imageData = null } = await req.json();
 
     // 日本時間で今日の日付を取得
     const today = new Date().toLocaleDateString('ja-JP', {
@@ -295,9 +327,9 @@ CRITICAL OUTPUT RULES:
       ? `${BASE_SYSTEM}\n\n---\n\n${systemPrompt}`
       : BASE_SYSTEM;
 
-    if (model === 'gpt-4o')           return await callOpenAI(finalSystem, trimmedMessages);
-    if (model === 'gemini-2.5-flash') return await callGemini(finalSystem, trimmedMessages);
-    return await callClaude(finalSystem, trimmedMessages);
+    if (model === 'gpt-4o')           return await callOpenAI(finalSystem, trimmedMessages, imageData);
+    if (model === 'gemini-2.5-flash') return await callGemini(finalSystem, trimmedMessages, imageData);
+    return await callClaude(finalSystem, trimmedMessages, imageData);
 
   } catch(e) {
     return new Response(JSON.stringify({ error: e.message }), {

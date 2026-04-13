@@ -523,6 +523,7 @@ body {
 }
 .model-btn:hover { border-color: var(--border2); color: var(--text2); }
 .model-btn.active { background: var(--accent-light); border-color: rgba(91,138,240,0.4); color: var(--accent); }
+.img-thumb { width: 28px; height: 28px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
 
 #pdfFileInput { display: none; }
 
@@ -671,6 +672,7 @@ body {
 </div>
 
 <input type="file" id="pdfFileInput" accept=".pdf" onchange="handlePdfSelect(event)">
+<input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/gif,image/webp" onchange="handleImageSelect(event)">
 
 <script>
 if (typeof marked !== 'undefined') {
@@ -687,7 +689,7 @@ const MODELS = [
 ];
 
 let projects = [], currentProjectId = null, editingProjectId = null;
-let selectedEmoji = '💬', isLoading = false, pendingPdf = null;
+let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null;
 let currentModel = 'claude-sonnet-4';
 
 async function init() {
@@ -908,6 +910,59 @@ function removePdf() {
   document.getElementById('pdfBtn')?.classList.remove('active');
 }
 
+// ── 画像 ──────────────────────────────────────────────────────────────
+function triggerImageUpload() { document.getElementById('imageFileInput').click(); }
+
+async function handleImageSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+  if (!allowed.includes(file.type)) { alert('JPG・PNG・GIF・WebP形式のみ対応しています'); return; }
+  if (file.size > 10 * 1024 * 1024) { alert('画像は10MB以下にしてください'); return; }
+
+  pendingImage = { name: file.name, base64: null, mimeType: file.type, loading: true };
+  renderImagePreview('読み込み中...');
+
+  try {
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    pendingImage = { name: file.name, base64, mimeType: file.type, loading: false };
+    renderImagePreview();
+  } catch(e) {
+    alert('画像の読み込みに失敗しました');
+    pendingImage = null;
+    renderImagePreview();
+  }
+  event.target.value = '';
+}
+
+function renderImagePreview(statusText) {
+  document.getElementById('imagePreviewBar')?.remove();
+  if (!pendingImage) return;
+  const inputInner = document.querySelector('.input-inner');
+  const preview = document.createElement('div');
+  preview.className = 'pdf-preview'; preview.id = 'imagePreviewBar';
+  if (statusText || pendingImage.loading) {
+    preview.innerHTML = `<span>🖼️</span><span class="pdf-preview-name">${escapeHtml(statusText || '読み込み中...')}</span><button class="pdf-remove-btn" onclick="removeImage()">✕</button>`;
+  } else {
+    preview.innerHTML = `<img class="img-thumb" src="data:${pendingImage.mimeType};base64,${pendingImage.base64}"><span class="pdf-preview-name">${escapeHtml(pendingImage.name)}</span><button class="pdf-remove-btn" onclick="removeImage()">✕</button>`;
+  }
+  const pdfBar = document.getElementById('pdfPreviewBar');
+  if (pdfBar) pdfBar.after(preview);
+  else inputInner.insertBefore(preview, inputInner.firstChild);
+  document.getElementById('imgBtn')?.classList.add('active');
+}
+
+function removeImage() {
+  pendingImage = null;
+  document.getElementById('imagePreviewBar')?.remove();
+  document.getElementById('imgBtn')?.classList.remove('active');
+}
+
 // ── Chat ──────────────────────────────────────────────────────────────
 function getMessages() { return JSON.parse(localStorage.getItem(`chat_${currentProjectId}`) || '[]'); }
 function saveMessages(msgs) { localStorage.setItem(`chat_${currentProjectId}`, JSON.stringify(msgs)); }
@@ -949,12 +1004,13 @@ function renderChatArea() {
         </div>
         <div class="input-wrap">
           <button class="pdf-btn" id="pdfBtn" onclick="triggerPdfUpload()" title="PDFをアップロード">📎</button>
+          <button class="pdf-btn" id="imgBtn" onclick="triggerImageUpload()" title="画像をアップロード">🖼️</button>
           <textarea class="chat-input" id="chatInput"
             placeholder="メッセージを入力..."
             rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
         </div>
-        <div class="input-hint">Enter で送信 · Shift+Enter で改行 · 📎 でPDF添付</div>
+        <div class="input-hint">Enter で送信 · Shift+Enter で改行 · 📎 PDF · 🖼️ 画像</div>
       </div>
     </div>`;
   renderMessages();
@@ -1107,27 +1163,37 @@ async function sendMessage() {
   const input = document.getElementById('chatInput');
   if (!input) return;
   const text = input.value.trim();
-  if ((!text && !pendingPdf) || isLoading) return;
+  if ((!text && !pendingPdf && !pendingImage) || isLoading) return;
 
-  // PDFがまだ読み込み中の場合は待つ
   if (pendingPdf && pendingPdf.loading) {
     alert('PDFを読み込み中です。少し待ってから送信してください。');
     return;
   }
+  if (pendingImage && pendingImage.loading) {
+    alert('画像を読み込み中です。少し待ってから送信してください。');
+    return;
+  }
 
   const msgs = getMessages();
-  const displayText = pendingPdf ? `[PDF: ${pendingPdf.name}]\n${text}` : text;
+  const parts = [];
+  if (pendingPdf) parts.push(`[PDF: ${pendingPdf.name}]`);
+  if (pendingImage) parts.push(`[🖼 画像: ${pendingImage.name}]`);
+  if (text) parts.push(text);
+  const displayText = parts.join('\n');
+
   msgs.push({ role:'user', content: displayText });
   saveMessages(msgs);
   input.value = ''; input.style.height = 'auto';
 
   const pdfToSend = pendingPdf;
+  const imageToSend = pendingImage;
   removePdf();
+  removeImage();
   renderMessages();
-  await callAPI(msgs, pdfToSend);
+  await callAPI(msgs, pdfToSend, imageToSend);
 }
 
-async function callAPI(msgs, pdfData = null) {
+async function callAPI(msgs, pdfData = null, imageData = null) {
   isLoading = true;
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) sendBtn.disabled = true;
@@ -1149,10 +1215,16 @@ async function callAPI(msgs, pdfData = null) {
 
     const apiMessages = msgs.map((m, idx) => {
       const role = m.role === 'ai' ? 'assistant' : 'user';
-      if (pdfData && idx === msgs.length - 1 && m.role === 'user') {
-        const userText = m.content.replace(`[PDF: ${pdfData.name}]\n`, '').trim();
-        const combinedText = `以下は「${pdfData.name}」から抽出したテキストです：\n\n${pdfData.text}\n\n---\n${userText || 'このPDFの内容を把握してください。'}`;
-        return { role, content: combinedText };
+      if (idx === msgs.length - 1 && m.role === 'user') {
+        let content = m.content;
+        if (pdfData)   content = content.replace(`[PDF: ${pdfData.name}]\n`, '');
+        if (imageData) content = content.replace(`[🖼 画像: ${imageData.name}]\n`, '');
+        content = content.trim();
+        if (pdfData) {
+          content = `以下は「${pdfData.name}」から抽出したテキストです：\n\n${pdfData.text}\n\n---\n${content || 'このPDFの内容を把握してください。'}`;
+        }
+        if (!content) content = '画像を確認してください。';
+        return { role, content };
       }
       return { role, content: m.content };
     });
@@ -1160,7 +1232,12 @@ async function callAPI(msgs, pdfData = null) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ systemPrompt: p?.prompt || '', messages: apiMessages, model: currentModel })
+      body: JSON.stringify({
+          systemPrompt: p?.prompt || '',
+          messages: apiMessages,
+          model: currentModel,
+          imageData: imageData ? { base64: imageData.base64, mimeType: imageData.mimeType, name: imageData.name } : null
+        })
     });
 
     if (!res.ok) {
