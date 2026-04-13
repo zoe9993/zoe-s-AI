@@ -659,6 +659,15 @@ body {
 </div>
 
 <div class="main" id="mainArea">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+      <div class="app-logo" style="margin:0">
+        <div class="logo-mark"><div class="logo-dot"></div></div>
+        <span class="app-title">Zoe's AI Assistant</span>
+      </div>
+    </div>
+  </div>
   <div class="no-project">
     <div class="no-project-icon">✦</div>
     <h2>Zoe's AI Assistant</h2>
@@ -1015,6 +1024,15 @@ function saveMessages(msgs) { localStorage.setItem(`chat_${currentProjectId}`, J
 
 function renderNoProject() {
   document.getElementById('mainArea').innerHTML = `
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        <div class="app-logo" style="margin:0">
+          <div class="logo-mark"><div class="logo-dot"></div></div>
+          <span class="app-title">Zoe's AI Assistant</span>
+        </div>
+      </div>
+    </div>
     <div class="no-project">
       <div class="no-project-icon">✦</div>
       <h2>Zoe's AI Assistant</h2>
