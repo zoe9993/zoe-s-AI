@@ -597,7 +597,8 @@ body {
 .emoji-opt.selected { border-color: var(--accent); background: var(--accent-light); }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  /* サイドバーをオーバーレイ式に */
   .sidebar {
     position: fixed; top: 0; left: 0;
     height: 100vh; height: 100dvh;
@@ -605,8 +606,29 @@ body {
     box-shadow: 6px 0 24px rgba(0,0,0,0.5);
   }
   .sidebar.open { transform: translateX(0); }
+
+  /* ☰ ボタンを常に表示 */
   .menu-btn { display: flex !important; }
-  .bubble-wrap { max-width: 88%; }
+
+  /* フォントサイズ */
+  body { font-size: 15px; }
+  .bubble { font-size: 14px; line-height: 1.75; }
+  .chat-input { font-size: 15px; }
+
+  /* バブル幅 */
+  .bubble-wrap { max-width: 92%; }
+
+  /* モデル選択：横スクロール（折り返さない） */
+  .model-selector {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .model-selector::-webkit-scrollbar { display: none; }
+  .model-btn { flex-shrink: 0; padding: 5px 14px; font-size: 11px; }
+
+  /* その他 */
   .input-hint { display: none; }
   .topbar-btn span { display: none; }
 }
