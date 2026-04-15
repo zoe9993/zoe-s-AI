@@ -63,13 +63,14 @@ async function callClaude(finalSystem, messages, imageData) {
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
+      'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'prompt-caching-2024-07-31'
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
+      max_tokens: 4000,
       stream: true,
-      system: finalSystem,
+      system: [{ type: 'text', text: finalSystem, cache_control: { type: 'ephemeral' } }],
       messages: claudeMessages
     })
   });
@@ -114,7 +115,7 @@ async function callOpenAI(finalSystem, messages, imageData) {
     },
     body: JSON.stringify({
       model: 'gpt-4o',
-      max_tokens: 8000,
+      max_tokens: 4000,
       stream: true,
       messages: openaiMessages
     })
@@ -155,7 +156,7 @@ async function callGemini(finalSystem, messages, imageData) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: finalSystem }] },
         contents,
-        generationConfig: { maxOutputTokens: 8000 }
+        generationConfig: { maxOutputTokens: 4000 }
       })
     }
   );
@@ -183,8 +184,8 @@ export default async function handler(req) {
       year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
     });
 
-    // 直近20件だけ使用（400エラー防止）
-    const trimmedMessages = Array.isArray(messages) ? messages.slice(-20) : [];
+    // 直近10件だけ使用（トークン節約）
+    const trimmedMessages = Array.isArray(messages) ? messages.slice(-10) : [];
 
     // ── RAG: 記憶の取得とキーワードマッチング ──────────────────────────────
     let memoriesText = '';
@@ -233,7 +234,8 @@ export default async function handler(req) {
       }
     } catch(_e) { /* 記憶取得失敗は既存機能に影響させない */ }
 
-    const BASE_SYSTEM = `今日の日付は${today}です。年数計算・在籍期間・経験年数は必ず今日の日付を基準に正確に計算してください。未来の日付と判断しないこと。
+    // ── コアシステムプロンプト（全チャット共通）──────────────────────────
+    const CORE_SYSTEM = `今日の日付は${today}です。年数計算・在籍期間・経験年数は必ず今日の日付を基準に正確に計算してください。未来の日付と判断しないこと。
 
 You are Zoe's elite AI recruitment assistant and personal coach. Zoe is a bilingual recruitment consultant (Chinese native) working in Japan.
 
@@ -269,7 +271,10 @@ CRITICAL OUTPUT RULES:
 - Do NOT add any headers like「修正版：」「修正案：」「以下が修正版です」
 - Do NOT add「修正ポイント：」「学習ポイント：」or any explanatory notes after the email
 - The output should be ready to copy and paste directly into an email client
-- Exception: if Zoe explicitly asks for explanation or correction points, then include them
+- Exception: if Zoe explicitly asks for explanation or correction points, then include them`;
+
+    // ── 履歴書ルール（プロジェクットチャットのみ追加）─────────────────────
+    const RESUME_RULES = `
 
 ---
 
@@ -372,6 +377,10 @@ CRITICAL OUTPUT RULES:
 - AI的・機械的な表現は使わない
 - 文法・助詞の誤りは必ず修正する
 - 日本企業の中途採用書類の水準に準拠する`;
+
+    // 一般チャット（project_id なし）: CORE_SYSTEM のみ
+    // プロジェクットチャット: CORE_SYSTEM + RESUME_RULES
+    const BASE_SYSTEM = project_id ? CORE_SYSTEM + RESUME_RULES : CORE_SYSTEM;
 
     const finalSystem = systemPrompt
       ? `${BASE_SYSTEM}${memoriesText}\n\n---\n\n${systemPrompt}`
