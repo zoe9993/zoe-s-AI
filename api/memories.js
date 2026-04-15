@@ -32,10 +32,10 @@ export default async function handler(req) {
         query += '&scope=eq.global';
       } else if (scope === 'project' && project_id) {
         // 指定プロジェクットの記憶のみ
-        query += `&scope=eq.project&project_id=eq.${project_id}`;
+        query += `&scope=eq.project&project_id=eq.${encodeURIComponent(project_id)}`;
       } else if (project_id) {
         // グローバル + 指定プロジェクットの両方（chat.js RAG用）
-        query += `&or=(scope.eq.global,and(scope.eq.project,project_id.eq.${project_id}))`;
+        query += `&or=(scope.eq.global,and(scope.eq.project,project_id.eq.${encodeURIComponent(project_id)}))`;
       }
       // パラメータなしの場合は全件返す
 
@@ -106,7 +106,7 @@ export default async function handler(req) {
         });
       } else if (scope === 'project' && project_id) {
         await fetch(
-          `${SUPABASE_URL}/rest/v1/memories?scope=eq.project&project_id=eq.${project_id}`,
+          `${SUPABASE_URL}/rest/v1/memories?scope=eq.project&project_id=eq.${encodeURIComponent(project_id)}`,
           { method: 'DELETE', headers: sbHeaders }
         );
       } else {

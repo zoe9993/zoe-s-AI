@@ -195,7 +195,7 @@ export default async function handler(req) {
       if (SUPABASE_URL && SUPABASE_KEY) {
         let memQuery = `${SUPABASE_URL}/rest/v1/memories?select=*&order=created_at.asc`;
         if (project_id) {
-          memQuery += `&or=(scope.eq.global,and(scope.eq.project,project_id.eq.${project_id}))`;
+          memQuery += `&or=(scope.eq.global,and(scope.eq.project,project_id.eq.${encodeURIComponent(project_id)}))`;
         } else {
           memQuery += `&scope=eq.global`;
         }

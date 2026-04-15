@@ -1466,7 +1466,17 @@ function handlePaste(e) {
 
 // ── Chat ──────────────────────────────────────────────────────────────
 function getMessages() { return JSON.parse(localStorage.getItem(`chat_${currentProjectId}`) || '[]'); }
-function saveMessages(msgs) { localStorage.setItem(`chat_${currentProjectId}`, JSON.stringify(msgs)); }
+function saveMessages(msgs) {
+  const key = `chat_${currentProjectId}`;
+  const data = JSON.stringify(msgs);
+  try {
+    localStorage.setItem(key, data);
+  } catch(e) {
+    // 容量超過時：古いメッセージを半分に削って再試行
+    const trimmed = msgs.slice(-Math.floor(msgs.length / 2));
+    try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch(_) {}
+  }
+}
 
 function renderNoProject() {
   document.getElementById('mainArea').innerHTML = `
@@ -1782,8 +1792,12 @@ async function callAPI(msgs, pdfData = null, imageData = null, urlData = null) {
       return { role, content: m.content };
     });
 
+    const abortCtrl = new AbortController();
+    const abortTimer = setTimeout(() => abortCtrl.abort(), 90000); // 90秒タイムアウト
+
     const res = await fetch('/api/chat', {
       method: 'POST',
+      signal: abortCtrl.signal,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
           systemPrompt: p?.prompt || '',
@@ -1793,6 +1807,7 @@ async function callAPI(msgs, pdfData = null, imageData = null, urlData = null) {
           project_id: isGeneral ? null : currentProjectId
         })
     });
+    clearTimeout(abortTimer);
 
     if (!res.ok) {
       throw new Error(`HTTPエラー: ${res.status}`);
@@ -1839,7 +1854,8 @@ async function callAPI(msgs, pdfData = null, imageData = null, urlData = null) {
     document.getElementById('thinkingMsg')?.remove();
     document.getElementById('streamingMsg')?.remove();
     const allMsgs = getMessages();
-    allMsgs.push({ role: 'ai', content: '⚠ エラー: ' + e.message });
+    const errMsg = e.name === 'AbortError' ? '⚠ タイムアウト：応答に時間がかかりすぎました。もう一度お試しください。' : '⚠ エラーが発生しました。もう一度お試しください。';
+    allMsgs.push({ role: 'ai', content: errMsg });
     saveMessages(allMsgs);
   } finally {
     isLoading = false;
@@ -2184,20 +2200,27 @@ ${memSummary}`;
       fullText += dec.decode(value, { stream: true });
     }
 
-    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('JSON解析エラー');
-    const distilled = JSON.parse(jsonMatch[0]);
+    // JSON抽出: 最初の { から対応する } までを正確に取り出す
+    const start = fullText.indexOf('{');
+    if (start === -1) throw new Error('JSON解析エラー');
+    let depth = 0, end = -1;
+    for (let i = start; i < fullText.length; i++) {
+      if (fullText[i] === '{') depth++;
+      else if (fullText[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+    }
+    if (end === -1) throw new Error('JSON解析エラー');
+    const distilled = JSON.parse(fullText.slice(start, end + 1));
     if (!distilled.memories || !Array.isArray(distilled.memories)) throw new Error('形式エラー');
 
-    // 既存記憶を削除
-    const delUrl = scope === 'global'
-      ? '/api/memories?scope=global'
-      : `/api/memories?scope=project&project_id=${currentProjectId}`;
-    await fetch(delUrl, { method: 'DELETE' });
+    // typeを検証してから有効なものだけ使う
+    const validMemories = distilled.memories.filter(m =>
+      ['positive','negative'].includes(m.type) && typeof m.content === 'string' && m.content.trim()
+    );
+    if (validMemories.length === 0) throw new Error('有効な記憶がありません');
 
-    // 蒸留後の記憶を保存
-    for (const mem of distilled.memories) {
-      const body = { scope, type: mem.type, content: mem.content };
+    // 先に新しい記憶を保存してから古いものを削除（データ消失防止）
+    for (const mem of validMemories) {
+      const body = { scope, type: mem.type, content: mem.content.trim() };
       if (scope === 'project') body.project_id = currentProjectId;
       await fetch('/api/memories', {
         method: 'POST',
@@ -2205,6 +2228,12 @@ ${memSummary}`;
         body: JSON.stringify(body)
       });
     }
+
+    // 保存成功後に古い記憶を削除
+    const delUrl = scope === 'global'
+      ? '/api/memories?scope=global'
+      : `/api/memories?scope=project&project_id=${encodeURIComponent(currentProjectId)}`;
+    await fetch(delUrl, { method: 'DELETE' });
 
     await loadMemoryLib();
     showToast(`🔥 ${distilled.memories.length}件に蒸留しました ✓`);
