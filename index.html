@@ -436,6 +436,79 @@ body {
 .bubble-action-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--surface3); }
 .bubble-action-btn.copied { border-color: var(--success); color: var(--success); background: rgba(62,184,122,0.08); }
 
+/* ── MEMORY UI ── */
+.feedback-btn {
+  background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text3); font-size: 13px; cursor: pointer;
+  padding: 2px 6px; border-radius: 5px; transition: all 0.12s; line-height: 1;
+}
+.feedback-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--surface3); }
+.feedback-btn.positive:hover { border-color: var(--success); color: var(--success); background: rgba(62,184,122,0.08); }
+.feedback-btn.negative:hover { border-color: var(--danger); color: var(--danger); background: rgba(217,85,85,0.08); }
+
+.scope-btn {
+  flex: 1; padding: 6px 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid var(--border2); background: var(--surface2);
+  color: var(--text2); font-family: 'Noto Sans JP', sans-serif;
+  font-size: 11px; transition: all 0.12s;
+}
+.scope-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+.scope-btn:hover { color: var(--text); }
+
+.edit-textarea {
+  width: 100%; background: var(--surface3); border: 1px solid rgba(91,138,240,0.4);
+  color: var(--text); font-family: 'Noto Sans JP', sans-serif; font-size: 13px;
+  padding: 8px; border-radius: 6px; outline: none;
+  resize: vertical; min-height: 80px; line-height: 1.7;
+}
+
+.memory-lib-btn {
+  width: 100%; padding: 7px 10px; background: none;
+  border: 1px solid var(--border); color: var(--text2);
+  font-family: 'Noto Sans JP', sans-serif; font-size: 11px;
+  cursor: pointer; border-radius: 7px; transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.memory-lib-btn:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+
+.memory-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 7px; padding: 8px 10px; margin-bottom: 5px;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.memory-item-text { flex: 1; font-size: 12px; line-height: 1.6; color: var(--text); word-break: break-word; }
+.memory-item-meta { font-size: 10px; color: var(--text3); margin-top: 3px; }
+.memory-type-badge {
+  font-size: 9px; padding: 2px 6px; border-radius: 4px;
+  font-family: 'DM Mono', monospace; flex-shrink: 0; margin-top: 2px;
+}
+.memory-type-badge.positive { background: rgba(62,184,122,0.15); color: var(--success); border: 1px solid rgba(62,184,122,0.3); }
+.memory-type-badge.negative { background: rgba(217,85,85,0.15); color: var(--danger); border: 1px solid rgba(217,85,85,0.3); }
+
+.memory-filter-row { display: flex; gap: 5px; margin-bottom: 10px; flex-wrap: wrap; }
+.memory-filter-btn {
+  padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border);
+  background: none; color: var(--text3); font-size: 10px; cursor: pointer;
+  transition: all 0.12s; font-family: 'DM Mono', monospace;
+}
+.memory-filter-btn.active { background: var(--accent-light); border-color: rgba(91,138,240,0.4); color: var(--accent); }
+.memory-filter-btn:hover { color: var(--text2); }
+
+.distill-btn { border-color: rgba(255,140,0,0.4) !important; color: #e8960a !important; }
+.distill-btn:hover { background: rgba(255,140,0,0.08) !important; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--surface3); border: 1px solid var(--border2);
+  color: var(--text); font-size: 12px; padding: 8px 18px; border-radius: 20px;
+  z-index: 9999; animation: toastIn 0.2s ease;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4); pointer-events: none; white-space: nowrap;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
 .thinking { display: flex; gap: 4px; align-items: center; }
 .thinking span {
   width: 5px; height: 5px; background: var(--text3);
@@ -761,6 +834,9 @@ body {
     <button class="new-btn" onclick="openNewProjectModal()">＋ 新しいプロジェクト</button>
   </div>
   <div class="projects-list" id="projectsList"></div>
+  <div style="padding:0 10px 6px">
+    <button class="memory-lib-btn" onclick="openMemoryLib()">📚 記憶ライブラリ</button>
+  </div>
   <div class="sidebar-footer">
     <div class="status-dot"></div>
     <span id="footerModel">Claude Sonnet 4</span>
@@ -813,6 +889,69 @@ body {
 
 <input type="file" id="pdfFileInput" accept=".pdf" onchange="handlePdfSelect(event)">
 <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/gif,image/webp" onchange="handleImageSelect(event)">
+
+<!-- ── Feedback Modal ── -->
+<div class="modal-overlay" id="feedbackModalOverlay" style="display:none" onclick="if(event.target===this)closeFeedbackModal()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
+    <div class="modal-title" id="feedbackTypeLabel">👍 良い点を記憶</div>
+    <div id="feedbackScopeArea" class="form-group"></div>
+    <div class="form-group">
+      <label class="form-label">内容</label>
+      <textarea class="form-textarea" id="feedbackContent" placeholder="記憶として保存する内容..." style="min-height:80px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeFeedbackModal()">キャンセル</button>
+      <button class="btn btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Memory Library Modal ── -->
+<div class="modal-overlay" id="memoryLibOverlay" style="display:none" onclick="if(event.target===this)closeMemoryLib()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:560px">
+    <div class="modal-title">📚 記憶ライブラリ</div>
+    <div class="memory-filter-row">
+      <button class="memory-filter-btn active" onclick="setMemFilter('all')" id="mfAll">すべて</button>
+      <button class="memory-filter-btn" onclick="setMemFilter('global')" id="mfGlobal">🌐 グローバル</button>
+      <button class="memory-filter-btn" onclick="setMemFilter('project')" id="mfProject">📁 プロジェクト</button>
+      <button class="memory-filter-btn" onclick="setMemFilter('positive')" id="mfPositive">✅ 好み</button>
+      <button class="memory-filter-btn" onclick="setMemFilter('negative')" id="mfNegative">❌ 避ける</button>
+    </div>
+    <div id="memoryLibList" style="max-height:280px;overflow-y:auto;margin-bottom:10px"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-ghost" onclick="openAddMemoryForm()" style="font-size:11px">＋ 手動追加</button>
+      <button class="btn btn-ghost distill-btn" onclick="distillMemories('global')" style="font-size:11px">🔥 グローバル蒸留</button>
+      <button class="btn btn-ghost distill-btn" onclick="distillMemories('project')" id="distillProjectBtn" style="font-size:11px">🔥 プロジェクト蒸留</button>
+    </div>
+    <div id="addMemoryForm" style="display:none;border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+      <div class="form-group">
+        <label class="form-label">スコープ</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="scope-btn active" id="addScopeGlobal" onclick="selectAddScope('global')">🌐 グローバル</button>
+          <button class="scope-btn" id="addScopeProject" onclick="selectAddScope('project')">📁 このプロジェクト</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">タイプ</label>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="scope-btn active" id="addTypePositive" onclick="selectAddType('positive')">✅ 好み</button>
+          <button class="scope-btn" id="addTypeNegative" onclick="selectAddType('negative')">❌ 避ける</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">内容</label>
+        <textarea class="form-textarea" id="addMemContent" placeholder="記憶として保存する内容..." style="min-height:60px"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeAddMemoryForm()" style="font-size:11px">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveManualMemory()" style="font-size:11px">追加</button>
+      </div>
+    </div>
+    <div class="modal-actions" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closeMemoryLib()">閉じる</button>
+    </div>
+  </div>
+</div>
 
 <script>
 if (typeof marked !== 'undefined') {
@@ -1359,7 +1498,7 @@ function renderMessages() {
           ${escapeHtml(memo.replace(/^【確認メモ】\n?|^\[確認メモ\]\n?/, '')).replace(/\n/g, '<br>')}
         </div>` : '';
       return `
-        <div class="message ai">
+        <div class="message ai" data-msg-index="${i}">
           <div class="avatar">✦</div>
           <div class="bubble-wrap">
             <div class="bubble">${renderMarkdown(main)}</div>
@@ -1367,6 +1506,9 @@ function renderMessages() {
             <div class="bubble-actions">
               <button class="bubble-action-btn" id="copybtn-${i}" onclick="copyMsg(${i})">📋 コピー</button>
               <button class="bubble-action-btn" onclick="regenMsg(${i})">↺ 再生成</button>
+              <button class="feedback-btn positive" onclick="openFeedbackModal(${i},'positive')" title="良い点を記憶">👍</button>
+              <button class="feedback-btn negative" onclick="openFeedbackModal(${i},'negative')" title="改善点を記憶">👎</button>
+              <button class="feedback-btn" onclick="startEditMsg(${i})" title="編集して記憶">✏️</button>
             </div>
           </div>
         </div>`;
@@ -1509,7 +1651,8 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
           systemPrompt: p?.prompt || '',
           messages: apiMessages,
           model: currentModel,
-          imageData: imageData ? { base64: imageData.base64, mimeType: imageData.mimeType, name: imageData.name } : null
+          imageData: imageData ? { base64: imageData.base64, mimeType: imageData.mimeType, name: imageData.name } : null,
+          project_id: isGeneral ? null : currentProjectId
         })
     });
 
@@ -1566,6 +1709,360 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
     renderMessages();
     document.getElementById('chatInput')?.focus();
   }
+}
+
+// ── Memory UI ─────────────────────────────────────────────────────────
+
+let feedbackMsgIndex = null;
+let feedbackType = null;
+let memoryLibFilter = 'all';
+let memoryLibData = [];
+let addMemScope = 'global';
+let addMemType = 'positive';
+let _editOriginal = '';
+let _editMemo = null;
+
+/* ── フィードバックモーダル ── */
+function openFeedbackModal(msgIndex, type) {
+  feedbackMsgIndex = msgIndex;
+  feedbackType = type;
+  const msgs = getMessages();
+  const msg = msgs[msgIndex];
+  if (!msg) return;
+
+  window._feedbackScope = 'global';
+  const isGeneral = isGeneralChat(currentProjectId);
+  const typeLabel = type === 'positive' ? '👍 良い点を記憶' : '👎 改善点を記憶';
+  document.getElementById('feedbackTypeLabel').textContent = typeLabel;
+  document.getElementById('feedbackContent').value = '';
+
+  let scopeHtml = '<label class="form-label" style="margin-bottom:6px;display:block">スコープ</label>'
+    + '<div style="display:flex;gap:8px;margin-bottom:4px">'
+    + '<button class="scope-btn active" id="scopeGlobal" onclick="selectFeedbackScope(\'global\')">🌐 グローバル</button>';
+  if (!isGeneral) {
+    scopeHtml += '<button class="scope-btn" id="scopeProject" onclick="selectFeedbackScope(\'project\')">📁 このプロジェクト</button>';
+  }
+  scopeHtml += '</div>';
+  document.getElementById('feedbackScopeArea').innerHTML = scopeHtml;
+  document.getElementById('feedbackModalOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('feedbackContent').focus(), 50);
+}
+
+function selectFeedbackScope(scope) {
+  window._feedbackScope = scope;
+  document.getElementById('scopeGlobal')?.classList.toggle('active', scope === 'global');
+  document.getElementById('scopeProject')?.classList.toggle('active', scope === 'project');
+}
+
+function closeFeedbackModal() {
+  document.getElementById('feedbackModalOverlay').style.display = 'none';
+  feedbackMsgIndex = null;
+  feedbackType = null;
+}
+
+async function submitFeedback() {
+  const content = document.getElementById('feedbackContent').value.trim();
+  if (!content) { alert('内容を入力してください'); return; }
+
+  const scope = window._feedbackScope || 'global';
+  const body = { scope, type: feedbackType, content };
+  if (scope === 'project' && !isGeneralChat(currentProjectId)) {
+    body.project_id = currentProjectId;
+  }
+
+  const btn = document.getElementById('feedbackSubmitBtn');
+  const orig = btn.textContent;
+  btn.textContent = '保存中...'; btn.disabled = true;
+  try {
+    const res = await fetch('/api/memories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      closeFeedbackModal();
+      showToast('記憶を保存しました ✓');
+    } else {
+      alert('保存に失敗しました');
+    }
+  } catch(e) {
+    alert('エラー: ' + e.message);
+  } finally {
+    btn.textContent = orig;
+    btn.disabled = false;
+  }
+}
+
+/* ── インライン編集 ── */
+function startEditMsg(i) {
+  const msgs = getMessages();
+  const msg = msgs[i];
+  if (!msg) return;
+  const { main, memo } = splitMemo(msg.content);
+
+  const msgEl = document.querySelector(`[data-msg-index="${i}"]`);
+  if (!msgEl) return;
+  const bubbleEl = msgEl.querySelector('.bubble');
+  const actionsEl = msgEl.querySelector('.bubble-actions');
+  if (!bubbleEl) return;
+
+  _editOriginal = main;
+  _editMemo = memo;
+
+  bubbleEl.innerHTML = '';
+  const ta = document.createElement('textarea');
+  ta.className = 'edit-textarea';
+  ta.value = main;
+  bubbleEl.appendChild(ta);
+
+  if (actionsEl) {
+    actionsEl.innerHTML = `
+      <button class="bubble-action-btn" style="color:var(--success)" onclick="saveEditMsg(${i})">✓ 保存</button>
+      <button class="bubble-action-btn" onclick="renderMessages()">✕ キャンセル</button>`;
+  }
+  ta.focus();
+}
+
+async function saveEditMsg(i) {
+  const msgEl = document.querySelector(`[data-msg-index="${i}"]`);
+  if (!msgEl) return;
+  const ta = msgEl.querySelector('.edit-textarea');
+  if (!ta) return;
+
+  const newContent = ta.value.trim();
+  if (!newContent || newContent === _editOriginal) { renderMessages(); return; }
+
+  const msgs = getMessages();
+  const fullContent = _editMemo ? `${newContent}\n${_editMemo}` : newContent;
+  msgs[i] = { ...msgs[i], content: fullContent };
+  saveMessages(msgs);
+
+  // 修正をグローバル記憶として保存
+  try {
+    await fetch('/api/memories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        scope: 'global',
+        type: 'positive',
+        content: `ユーザーが修正した表現: ${newContent.slice(0, 200)}`
+      })
+    });
+    showToast('修正を記憶として保存しました ✓');
+  } catch(_e) {}
+
+  renderMessages();
+}
+
+/* ── 記憶ライブラリ ── */
+async function openMemoryLib() {
+  memoryLibFilter = 'all';
+  const isGeneral = isGeneralChat(currentProjectId);
+  const distillBtn = document.getElementById('distillProjectBtn');
+  if (distillBtn) distillBtn.style.display = isGeneral ? 'none' : '';
+
+  document.querySelectorAll('.memory-filter-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('mfAll')?.classList.add('active');
+  document.getElementById('addMemoryForm').style.display = 'none';
+  document.getElementById('memoryLibOverlay').style.display = 'flex';
+  await loadMemoryLib();
+}
+
+function closeMemoryLib() {
+  document.getElementById('memoryLibOverlay').style.display = 'none';
+}
+
+async function loadMemoryLib() {
+  const listEl = document.getElementById('memoryLibList');
+  listEl.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px">読み込み中...</div>';
+  try {
+    const isGeneral = isGeneralChat(currentProjectId);
+    const url = isGeneral ? '/api/memories' : `/api/memories?project_id=${currentProjectId}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('取得失敗');
+    memoryLibData = await res.json();
+    renderMemoryLib();
+  } catch(e) {
+    listEl.innerHTML = `<div style="color:var(--danger);font-size:12px;padding:8px">エラー: ${e.message}</div>`;
+  }
+}
+
+function setMemFilter(filter) {
+  memoryLibFilter = filter;
+  document.querySelectorAll('.memory-filter-btn').forEach(b => b.classList.remove('active'));
+  const idMap = { all:'mfAll', global:'mfGlobal', project:'mfProject', positive:'mfPositive', negative:'mfNegative' };
+  document.getElementById(idMap[filter])?.classList.add('active');
+  renderMemoryLib();
+}
+
+function renderMemoryLib() {
+  const listEl = document.getElementById('memoryLibList');
+  let filtered = memoryLibData;
+  if (memoryLibFilter === 'global')   filtered = memoryLibData.filter(m => m.scope === 'global');
+  else if (memoryLibFilter === 'project')  filtered = memoryLibData.filter(m => m.scope === 'project');
+  else if (memoryLibFilter === 'positive') filtered = memoryLibData.filter(m => m.type === 'positive');
+  else if (memoryLibFilter === 'negative') filtered = memoryLibData.filter(m => m.type === 'negative');
+
+  if (!filtered.length) {
+    listEl.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px">記憶がありません</div>';
+    return;
+  }
+  listEl.innerHTML = filtered.map(m => `
+    <div class="memory-item">
+      <div class="memory-type-badge ${m.type}">${m.type === 'positive' ? '✅' : '❌'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="memory-item-text">${escapeHtml(m.content)}</div>
+        <div class="memory-item-meta">${m.scope === 'global' ? '🌐 グローバル' : '📁 プロジェクト'} · ${new Date(m.created_at).toLocaleDateString('ja-JP')}</div>
+      </div>
+      <button class="icon-btn danger" onclick="deleteMemory('${m.id}')" title="削除">🗑</button>
+    </div>`).join('');
+}
+
+async function deleteMemory(id) {
+  if (!confirm('この記憶を削除しますか？')) return;
+  try {
+    const res = await fetch(`/api/memories?id=${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      memoryLibData = memoryLibData.filter(m => m.id !== id);
+      renderMemoryLib();
+      showToast('削除しました');
+    }
+  } catch(e) { alert('削除エラー: ' + e.message); }
+}
+
+function openAddMemoryForm() {
+  addMemScope = 'global';
+  addMemType = 'positive';
+  const isGeneral = isGeneralChat(currentProjectId);
+  document.getElementById('addScopeProject').style.display = isGeneral ? 'none' : '';
+  document.getElementById('addScopeGlobal').classList.add('active');
+  document.getElementById('addScopeProject').classList.remove('active');
+  document.getElementById('addTypePositive').classList.add('active');
+  document.getElementById('addTypeNegative').classList.remove('active');
+  document.getElementById('addMemContent').value = '';
+  document.getElementById('addMemoryForm').style.display = 'block';
+  setTimeout(() => document.getElementById('addMemContent').focus(), 50);
+}
+
+function closeAddMemoryForm() {
+  document.getElementById('addMemoryForm').style.display = 'none';
+}
+
+function selectAddScope(scope) {
+  addMemScope = scope;
+  document.getElementById('addScopeGlobal').classList.toggle('active', scope === 'global');
+  document.getElementById('addScopeProject').classList.toggle('active', scope === 'project');
+}
+
+function selectAddType(type) {
+  addMemType = type;
+  document.getElementById('addTypePositive').classList.toggle('active', type === 'positive');
+  document.getElementById('addTypeNegative').classList.toggle('active', type === 'negative');
+}
+
+async function saveManualMemory() {
+  const content = document.getElementById('addMemContent').value.trim();
+  if (!content) { alert('内容を入力してください'); return; }
+  const body = { scope: addMemScope, type: addMemType, content };
+  if (addMemScope === 'project' && !isGeneralChat(currentProjectId)) {
+    body.project_id = currentProjectId;
+  }
+  try {
+    const res = await fetch('/api/memories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      closeAddMemoryForm();
+      await loadMemoryLib();
+      showToast('記憶を追加しました ✓');
+    } else {
+      alert('追加に失敗しました');
+    }
+  } catch(e) { alert('エラー: ' + e.message); }
+}
+
+/* ── 🔥 蒸留機能 ── */
+async function distillMemories(scope) {
+  const isGeneral = isGeneralChat(currentProjectId);
+  if (scope === 'project' && isGeneral) { alert('プロジェクトが選択されていません'); return; }
+
+  const filtered = scope === 'global'
+    ? memoryLibData.filter(m => m.scope === 'global')
+    : memoryLibData.filter(m => m.scope === 'project' && m.project_id === currentProjectId);
+
+  if (filtered.length < 2) { alert('蒸留には2件以上の記憶が必要です'); return; }
+  if (!confirm(`${filtered.length}件の記憶を蒸留・整理します。元の記憶は削除されます。続けますか？`)) return;
+
+  showToast('🔥 蒸留中...');
+
+  const memSummary = filtered.map((m, idx) => `${idx + 1}. [${m.type}] ${m.content}`).join('\n');
+  const distillPrompt = `以下の記憶リストを整理・統合してください。重複を排除し、より明確で簡潔な記憶として再構成してください。
+結果は以下のJSON形式のみで返してください（他のテキストは不要）：
+{"memories":[{"type":"positive","content":"..."},{"type":"negative","content":"..."}]}
+
+記憶リスト：
+${memSummary}`;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemPrompt: '記憶の蒸留・整理アシスタントです。指定されたJSON形式のみで返答してください。',
+        messages: [{ role: 'user', content: distillPrompt }],
+        model: currentModel
+      })
+    });
+    if (!res.ok) throw new Error('APIエラー');
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let fullText = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      fullText += dec.decode(value, { stream: true });
+    }
+
+    const jsonMatch = fullText.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('JSON解析エラー');
+    const distilled = JSON.parse(jsonMatch[0]);
+    if (!distilled.memories || !Array.isArray(distilled.memories)) throw new Error('形式エラー');
+
+    // 既存記憶を削除
+    const delUrl = scope === 'global'
+      ? '/api/memories?scope=global'
+      : `/api/memories?scope=project&project_id=${currentProjectId}`;
+    await fetch(delUrl, { method: 'DELETE' });
+
+    // 蒸留後の記憶を保存
+    for (const mem of distilled.memories) {
+      const body = { scope, type: mem.type, content: mem.content };
+      if (scope === 'project') body.project_id = currentProjectId;
+      await fetch('/api/memories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+    }
+
+    await loadMemoryLib();
+    showToast(`🔥 ${distilled.memories.length}件に蒸留しました ✓`);
+  } catch(e) {
+    alert('蒸留エラー: ' + e.message);
+  }
+}
+
+/* ── Toast ── */
+function showToast(msg) {
+  document.querySelector('.toast')?.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
 }
 
 init();

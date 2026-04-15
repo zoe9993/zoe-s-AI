@@ -175,7 +175,7 @@ export default async function handler(req) {
   }
 
   try {
-    const { systemPrompt, messages, model = 'claude-sonnet-4', imageData = null } = await req.json();
+    const { systemPrompt, messages, model = 'claude-sonnet-4', imageData = null, project_id = null } = await req.json();
 
     // 日本時間で今日の日付を取得
     const today = new Date().toLocaleDateString('ja-JP', {
@@ -185,6 +185,53 @@ export default async function handler(req) {
 
     // 直近20件だけ使用（400エラー防止）
     const trimmedMessages = Array.isArray(messages) ? messages.slice(-20) : [];
+
+    // ── RAG: 記憶の取得とキーワードマッチング ──────────────────────────────
+    let memoriesText = '';
+    try {
+      const SUPABASE_URL = process.env.SUPABASE_URL;
+      const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+      if (SUPABASE_URL && SUPABASE_KEY) {
+        let memQuery = `${SUPABASE_URL}/rest/v1/memories?select=*&order=created_at.asc`;
+        if (project_id) {
+          memQuery += `&or=(scope.eq.global,and(scope.eq.project,project_id.eq.${project_id}))`;
+        } else {
+          memQuery += `&scope=eq.global`;
+        }
+        const memRes = await fetch(memQuery, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        });
+        if (memRes.ok) {
+          const allMemories = await memRes.json();
+          if (allMemories.length > 0) {
+            // 直近5件の会話からキーワード抽出
+            const contextText = trimmedMessages.slice(-5).map(m => m.content).join(' ').toLowerCase();
+            const words = contextText.match(/[\p{L}\p{N}]{2,}/gu) || [];
+            const keywords = [...new Set(words)];
+
+            // キーワードマッチングでスコアリング
+            const scored = allMemories.map(mem => {
+              const memLower = mem.content.toLowerCase();
+              const score = keywords.filter(kw => memLower.includes(kw)).length;
+              return { ...mem, score };
+            });
+            // スコアが同じ場合は新しい順にソート、上位5件
+            scored.sort((a, b) => b.score - a.score);
+            const top5 = scored.slice(0, 5);
+
+            const positives = top5.filter(m => m.type === 'positive').map(m => `・${m.content}`).join('\n');
+            const negatives = top5.filter(m => m.type === 'negative').map(m => `・${m.content}`).join('\n');
+
+            if (positives || negatives) {
+              memoriesText = '\n\n---\n【Zoeの好みと学習記憶】\n\n';
+              if (positives) memoriesText += `✅ 好きな表現・パターン：\n${positives}\n\n`;
+              if (negatives) memoriesText += `❌ 避けるべき表現・パターン：\n${negatives}`;
+              memoriesText += '\n---';
+            }
+          }
+        }
+      }
+    } catch(_e) { /* 記憶取得失敗は既存機能に影響させない */ }
 
     const BASE_SYSTEM = `今日の日付は${today}です。年数計算・在籍期間・経験年数は必ず今日の日付を基準に正確に計算してください。未来の日付と判断しないこと。
 
@@ -327,8 +374,8 @@ CRITICAL OUTPUT RULES:
 - 日本企業の中途採用書類の水準に準拠する`;
 
     const finalSystem = systemPrompt
-      ? `${BASE_SYSTEM}\n\n---\n\n${systemPrompt}`
-      : BASE_SYSTEM;
+      ? `${BASE_SYSTEM}${memoriesText}\n\n---\n\n${systemPrompt}`
+      : `${BASE_SYSTEM}${memoriesText}`;
 
     if (model === 'gpt-4o')           return await callOpenAI(finalSystem, trimmedMessages, imageData);
     if (model === 'gemini-2.5-flash') return await callGemini(finalSystem, trimmedMessages, imageData);
