@@ -853,6 +853,12 @@ body {
     <button class="memory-lib-btn" onclick="openMemoryLib()" style="flex:1">📚 記憶ライブラリ</button>
     <button class="memory-lib-btn" onclick="openQuickMemory()" style="flex:0 0 auto;padding:6px 10px" title="記憶を直接追加">＋</button>
   </div>
+  <div style="padding:0 10px 10px">
+    <button id="autoLearnToggle" onclick="toggleAutoLearn()" style="width:100%;background:none;border:1px solid var(--border);border-radius:7px;padding:6px 10px;font-size:11px;color:var(--text3);cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit">
+      <span id="autoLearnDot" style="width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:background 0.2s"></span>
+      <span id="autoLearnLabel">自動学習：OFF</span>
+    </button>
+  </div>
   <div class="sidebar-footer">
     <div class="status-dot"></div>
     <span id="footerModel">Claude Sonnet 4</span>
@@ -1048,6 +1054,7 @@ const MODELS = [
 let projects = [], currentProjectId = null, editingProjectId = null;
 let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null, pendingUrl = null;
 let currentModel = 'claude-sonnet-4';
+let autoLearnEnabled = localStorage.getItem('autoLearn') === 'on';
 
 /* ── AUTH ── */
 function isAuthenticated() {
@@ -1097,6 +1104,8 @@ async function startApp() {
   currentModel = localStorage.getItem('selectedModel') || 'claude-sonnet-4';
   const footer = document.getElementById('footerModel');
   if (footer) footer.textContent = MODELS.find(m => m.id === currentModel)?.label || 'Claude Sonnet 4';
+  // 自動学習トグルの初期表示
+  updateAutoLearnUI();
   // モデルセレクターを一度だけ初期化
   const modelSel = document.getElementById('modelSelector');
   if (modelSel) modelSel.innerHTML = MODELS.map(m =>
@@ -1889,7 +1898,116 @@ async function callAPI(msgs, pdfData = null, imageData = null, urlData = null) {
     if (sendBtn) sendBtn.disabled = false;
     renderMessages();
     document.getElementById('chatInput')?.focus();
+    // 自動学習：エラーでなければバックグラウンドで実行
+    if (autoLearnEnabled) runAutoLearn();
   }
+}
+
+// ── 自動学習 ──────────────────────────────────────────────────────────
+
+function toggleAutoLearn() {
+  autoLearnEnabled = !autoLearnEnabled;
+  localStorage.setItem('autoLearn', autoLearnEnabled ? 'on' : 'off');
+  updateAutoLearnUI();
+  showToast(autoLearnEnabled ? '🧠 自動学習ON：会話からルールを自動抽出します' : '自動学習OFF');
+}
+
+function updateAutoLearnUI() {
+  const dot   = document.getElementById('autoLearnDot');
+  const label = document.getElementById('autoLearnLabel');
+  if (!dot || !label) return;
+  dot.style.background   = autoLearnEnabled ? '#22c55e' : 'var(--border)';
+  label.textContent      = autoLearnEnabled ? '自動学習：ON' : '自動学習：OFF';
+  label.style.color      = autoLearnEnabled ? 'var(--text)' : 'var(--text3)';
+}
+
+async function runAutoLearn() {
+  const msgs = getMessages();
+  if (msgs.length < 2) return;
+  // 直近1往復（ユーザー→AI）を対象
+  const last = msgs.slice(-2);
+  const exchange = last.map(m => `${m.role === 'ai' ? 'AI' : 'Zoe'}: ${m.content.slice(0, 300)}`).join('\n\n');
+
+  const prompt = `以下はZoe（採用コンサルタント）とAIの会話の1往復です。
+Zoeの好み・スタイル・表現のルールとして次回以降に活かせるものが1つでもあれば、JSON形式で返してください。
+明確なパターンがなければ必ず「なし」とだけ返してください。
+
+JSON形式（ある場合のみ）：
+{"type":"positive"または"negative","content":"30字以内のルール"}
+
+会話：
+${exchange}`;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        systemPrompt: 'あなたは会話からユーザーの好みパターンを抽出するアシスタントです。指定されたJSON形式または「なし」のみで返答してください。',
+        messages: [{ role: 'user', content: prompt }],
+        model: 'claude-sonnet-4'
+      })
+    });
+    if (!res.ok) return;
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let text = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += dec.decode(value, { stream: true });
+    }
+    text = text.trim();
+    if (text === 'なし' || text.startsWith('なし')) return;
+
+    // JSON抽出
+    const start = text.indexOf('{');
+    if (start === -1) return;
+    let depth = 0, end = -1;
+    for (let i = start; i < text.length; i++) {
+      if (text[i] === '{') depth++;
+      else if (text[i] === '}') { depth--; if (depth === 0) { end = i; break; } }
+    }
+    if (end === -1) return;
+    const extracted = JSON.parse(text.slice(start, end + 1));
+    if (!extracted.content || !['positive','negative'].includes(extracted.type)) return;
+
+    // 提案トーストを表示（保存 or スキップ）
+    showAutoLearnSuggestion(extracted);
+  } catch(_e) {}
+}
+
+function showAutoLearnSuggestion({ type, content }) {
+  // 既存の提案があれば削除
+  document.getElementById('autoLearnToast')?.remove();
+
+  const icon = type === 'positive' ? '✅' : '❌';
+  const toast = document.createElement('div');
+  toast.id = 'autoLearnToast';
+  toast.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e2035;border:1px solid rgba(91,138,240,0.4);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;gap:8px;z-index:9000;max-width:340px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,0.5)`;
+  toast.innerHTML = `
+    <div style="font-size:12px;color:var(--text2);line-height:1.5">${icon} <strong>自動学習の提案：</strong><br>${escapeHtml(content)}</div>
+    <div style="display:flex;gap:8px">
+      <button onclick="acceptAutoLearn('${type}','${content.replace(/'/g,"\\'")}');this.closest('#autoLearnToast').remove()" style="flex:1;background:var(--accent);border:none;color:#fff;border-radius:6px;padding:6px;font-size:12px;cursor:pointer;font-family:inherit">💾 保存する</button>
+      <button onclick="this.closest('#autoLearnToast').remove()" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:6px;font-size:12px;cursor:pointer;font-family:inherit">スキップ</button>
+    </div>`;
+  document.body.appendChild(toast);
+  // 15秒で自動消去
+  setTimeout(() => toast.remove(), 15000);
+}
+
+async function acceptAutoLearn(type, content) {
+  const scope = isGeneralChat(currentProjectId) ? 'global' : 'project';
+  const body = { scope, type, content };
+  if (scope === 'project') body.project_id = currentProjectId;
+  try {
+    await fetch('/api/memories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    showToast('🧠 ルールを記憶しました ✓');
+  } catch(_e) {}
 }
 
 // ── Memory UI ─────────────────────────────────────────────────────────
