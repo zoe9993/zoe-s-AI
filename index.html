@@ -849,8 +849,9 @@ body {
     <button class="new-btn" onclick="openNewProjectModal()">＋ 新しいプロジェクト</button>
   </div>
   <div class="projects-list" id="projectsList"></div>
-  <div style="padding:0 10px 6px">
-    <button class="memory-lib-btn" onclick="openMemoryLib()">📚 記憶ライブラリ</button>
+  <div style="padding:0 10px 6px;display:flex;gap:6px">
+    <button class="memory-lib-btn" onclick="openMemoryLib()" style="flex:1">📚 記憶ライブラリ</button>
+    <button class="memory-lib-btn" onclick="openQuickMemory()" style="flex:0 0 auto;padding:6px 10px" title="記憶を直接追加">＋</button>
   </div>
   <div class="sidebar-footer">
     <div class="status-dot"></div>
@@ -941,16 +942,44 @@ body {
 
 <!-- ── Feedback Modal ── -->
 <div class="modal-overlay" id="feedbackModalOverlay" style="display:none" onclick="if(event.target===this)closeFeedbackModal()">
-  <div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
-    <div class="modal-title" id="feedbackTypeLabel">👍 良い点を記憶</div>
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:440px">
+    <div class="modal-title" id="feedbackTypeLabel">👍 この回答の良い点を記憶</div>
     <div id="feedbackScopeArea" class="form-group"></div>
     <div class="form-group">
-      <label class="form-label">内容</label>
-      <textarea class="form-textarea" id="feedbackContent" placeholder="記憶として保存する内容..." style="min-height:80px"></textarea>
+      <label class="form-label">AIに覚えさせたいこと</label>
+      <p style="font-size:11px;color:var(--text3);margin:-2px 0 6px">回答の内容ではなく「スタイル・形式・表現のルール」を書いてください。次回から反映されます。</p>
+      <textarea class="form-textarea" id="feedbackContent" style="min-height:90px"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeFeedbackModal()">キャンセル</button>
-      <button class="btn btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">保存</button>
+      <button class="btn btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">記憶として保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick Memory Modal ── -->
+<div class="modal-overlay" id="quickMemoryOverlay" style="display:none" onclick="if(event.target===this)closeQuickMemory()">
+  <div class="modal" onclick="event.stopPropagation()" style="max-width:420px">
+    <div class="modal-title">🧠 AIに覚えさせる</div>
+    <div class="form-group">
+      <label class="form-label">種類</label>
+      <div style="display:flex;gap:8px;margin-bottom:4px">
+        <button class="scope-btn active" id="qmTypePos" onclick="document.getElementById('qmTypePos').classList.add('active');document.getElementById('qmTypeNeg').classList.remove('active');window._qmType='positive'">✅ こうしてほしい</button>
+        <button class="scope-btn" id="qmTypeNeg" onclick="document.getElementById('qmTypeNeg').classList.add('active');document.getElementById('qmTypePos').classList.remove('active');window._qmType='negative'">❌ やってほしくない</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">スコープ</label>
+      <div style="display:flex;gap:8px;margin-bottom:4px" id="qmScopeArea"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">内容</label>
+      <p style="font-size:11px;color:var(--text3);margin:-2px 0 6px">具体的なルール・好みを書いてください。次の会話から反映されます。</p>
+      <textarea class="form-textarea" id="quickMemContent" placeholder="例：メールは件名に【】を使う&#10;例：箇条書きで簡潔に、3行以内&#10;例：敬語は丁寧体に統一してほしい" style="min-height:90px"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeQuickMemory()">キャンセル</button>
+      <button class="btn btn-primary" id="quickMemSaveBtn" onclick="saveQuickMemory()">記憶として保存</button>
     </div>
   </div>
 </div>
@@ -1884,15 +1913,18 @@ function openFeedbackModal(msgIndex, type) {
 
   window._feedbackScope = 'global';
   const isGeneral = isGeneralChat(currentProjectId);
-  const typeLabel = type === 'positive' ? '👍 良い点を記憶' : '👎 改善点を記憶';
+  const typeLabel = type === 'positive' ? '👍 この回答の良い点を記憶' : '👎 改善してほしい点を記憶';
   document.getElementById('feedbackTypeLabel').textContent = typeLabel;
 
-  // AIの返答を自動で内容欄にセット
-  const { main } = splitMemo(msg.content);
-  const autoContent = type === 'positive'
-    ? main.slice(0, 300)
-    : main.slice(0, 300);
-  document.getElementById('feedbackContent').value = autoContent;
+  // placeholder と初期値を「何が良い/悪いか」の具体的な指示に変える
+  const contentEl = document.getElementById('feedbackContent');
+  if (type === 'positive') {
+    contentEl.placeholder = '例：件名に【】を使った形式が好き\n例：箇条書きで簡潔にまとめてくれるスタイルが良い\n例：この丁寧な敬語のトーンを維持してほしい';
+    contentEl.value = '';
+  } else {
+    contentEl.placeholder = '例：長すぎる。3段落以内に収めてほしい\n例：「貴社」ではなく「御社」を使ってほしい\n例：箇条書きではなく文章形式にしてほしい';
+    contentEl.value = '';
+  }
 
   let scopeHtml = '<label class="form-label" style="margin-bottom:6px;display:block">スコープ</label>'
     + '<div style="display:flex;gap:8px;margin-bottom:4px">'
@@ -2012,6 +2044,51 @@ async function saveEditMsg(i) {
   } catch(_e) {}
 
   renderMessages();
+}
+
+/* ── クイック記憶追加 ── */
+function openQuickMemory() {
+  window._qmType = 'positive';
+  window._qmScope = 'global';
+  document.getElementById('qmTypePos').classList.add('active');
+  document.getElementById('qmTypeNeg').classList.remove('active');
+  document.getElementById('quickMemContent').value = '';
+
+  const isGeneral = isGeneralChat(currentProjectId);
+  let scopeHtml = `<button class="scope-btn active" id="qmScopeGlobal" onclick="document.getElementById('qmScopeGlobal').classList.add('active');document.getElementById('qmScopeProject')?.classList.remove('active');window._qmScope='global'">🌐 グローバル</button>`;
+  if (!isGeneral && currentProjectId) {
+    const p = projects.find(x => x.id === currentProjectId);
+    scopeHtml += `<button class="scope-btn" id="qmScopeProject" onclick="document.getElementById('qmScopeProject').classList.add('active');document.getElementById('qmScopeGlobal').classList.remove('active');window._qmScope='project'">📁 ${escapeHtml(p?.name||'このプロジェクト')}</button>`;
+  }
+  document.getElementById('qmScopeArea').innerHTML = scopeHtml;
+  document.getElementById('quickMemoryOverlay').style.display = 'flex';
+  setTimeout(() => document.getElementById('quickMemContent').focus(), 50);
+}
+
+function closeQuickMemory() {
+  document.getElementById('quickMemoryOverlay').style.display = 'none';
+}
+
+async function saveQuickMemory() {
+  const content = document.getElementById('quickMemContent').value.trim();
+  if (!content) { alert('内容を入力してください'); return; }
+  const scope = window._qmScope || 'global';
+  const type  = window._qmType  || 'positive';
+  const body  = { scope, type, content };
+  if (scope === 'project' && currentProjectId && !isGeneralChat(currentProjectId)) {
+    body.project_id = currentProjectId;
+  }
+  const btn = document.getElementById('quickMemSaveBtn');
+  btn.textContent = '保存中...'; btn.disabled = true;
+  try {
+    const res = await fetch('/api/memories', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) { closeQuickMemory(); showToast('記憶を保存しました ✓'); }
+    else alert('保存に失敗しました');
+  } catch(e) { alert('エラー: ' + e.message); }
+  finally { btn.textContent = '記憶として保存'; btn.disabled = false; }
 }
 
 /* ── 記憶ライブラリ ── */

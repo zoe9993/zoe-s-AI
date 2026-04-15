@@ -211,22 +211,29 @@ export default async function handler(req) {
             const keywords = [...new Set(words)];
 
             // キーワードマッチングでスコアリング
-            const scored = allMemories.map(mem => {
-              const memLower = mem.content.toLowerCase();
-              const score = keywords.filter(kw => memLower.includes(kw)).length;
-              return { ...mem, score };
-            });
-            // スコアが同じ場合は新しい順にソート、上位5件
-            scored.sort((a, b) => b.score - a.score);
-            const top5 = scored.slice(0, 5);
+            function scoreAndPick(list, limit) {
+              const scored = list.map(mem => {
+                const memLower = mem.content.toLowerCase();
+                const score = keywords.filter(kw => memLower.includes(kw)).length;
+                return { ...mem, score };
+              });
+              // スコア降順 → 新しい順でソート
+              scored.sort((a, b) => b.score - a.score || new Date(b.created_at) - new Date(a.created_at));
+              return scored.slice(0, limit);
+            }
 
-            const positives = top5.filter(m => m.type === 'positive').map(m => `・${m.content}`).join('\n');
-            const negatives = top5.filter(m => m.type === 'negative').map(m => `・${m.content}`).join('\n');
+            // GlobalとProjectを枠を分けて取得（競合させない）
+            const globals  = scoreAndPick(allMemories.filter(m => m.scope === 'global'), 5);
+            const projects = scoreAndPick(allMemories.filter(m => m.scope === 'project'), 5);
+            const selected = [...globals, ...projects];
+
+            const positives = selected.filter(m => m.type === 'positive').map(m => `・${m.content}`).join('\n');
+            const negatives = selected.filter(m => m.type === 'negative').map(m => `・${m.content}`).join('\n');
 
             if (positives || negatives) {
-              memoriesText = '\n\n---\n【Zoeの好みと学習記憶】\n\n';
-              if (positives) memoriesText += `✅ 好きな表現・パターン：\n${positives}\n\n`;
-              if (negatives) memoriesText += `❌ 避けるべき表現・パターン：\n${negatives}`;
+              memoriesText = '\n\n---\n【Zoeの指示・好みルール（必ず守ること）】\n\n';
+              if (positives) memoriesText += `✅ 必ずこうしてほしい：\n${positives}\n\n`;
+              if (negatives) memoriesText += `❌ 絶対にやってはいけない：\n${negatives}`;
               memoriesText += '\n---';
             }
           }
