@@ -1879,7 +1879,11 @@ async function loadMemoryLib() {
     const isGeneral = isGeneralChat(currentProjectId);
     const url = isGeneral ? '/api/memories' : `/api/memories?project_id=${currentProjectId}`;
     const res = await fetch(url);
-    if (!res.ok) throw new Error('取得失敗');
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try { const j = await res.json(); detail = JSON.stringify(j.error || j) || detail; } catch(_){}
+      throw new Error(detail);
+    }
     memoryLibData = await res.json();
     renderMemoryLib();
   } catch(e) {
