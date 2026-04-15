@@ -600,6 +600,19 @@ body {
 
 #pdfFileInput, #imageFileInput { display: none; }
 
+.url-input-field {
+  flex: 1; background: none; border: none; color: var(--text);
+  font-family: 'Noto Sans JP', sans-serif; font-size: 12px; outline: none;
+  min-width: 0;
+}
+.url-input-field::placeholder { color: var(--text3); }
+.url-fetch-btn {
+  background: none; border: 1px solid rgba(91,138,240,0.3); color: var(--accent);
+  font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0; transition: all 0.12s;
+}
+.url-fetch-btn:hover { background: var(--accent-light); }
+
 /* ── NO PROJECT ── */
 .no-project {
   flex: 1; display: flex; flex-direction: column;
@@ -968,7 +981,7 @@ const MODELS = [
 ];
 
 let projects = [], currentProjectId = null, editingProjectId = null;
-let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null;
+let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null, pendingUrl = null;
 let currentModel = 'claude-sonnet-4';
 
 /* ── AUTH ── */
@@ -1340,6 +1353,74 @@ function removeImage() {
   document.getElementById('imgBtn')?.classList.remove('active');
 }
 
+// ── URL取得 ──────────────────────────────────────────────────────────────
+function triggerUrlFetch() {
+  const bar = document.getElementById('urlInputBar');
+  if (!bar) return;
+  bar.style.display = 'flex';
+  document.getElementById('urlInputField')?.focus();
+  document.getElementById('urlBtn')?.classList.add('active');
+}
+
+function cancelUrlInput() {
+  const bar = document.getElementById('urlInputBar');
+  if (bar) bar.style.display = 'none';
+  const field = document.getElementById('urlInputField');
+  if (field) field.value = '';
+  if (!pendingUrl) document.getElementById('urlBtn')?.classList.remove('active');
+}
+
+async function confirmUrl() {
+  const field = document.getElementById('urlInputField');
+  if (!field) return;
+  const url = field.value.trim();
+  if (!url) return;
+
+  cancelUrlInput();
+  pendingUrl = { url, domain: '', text: null, loading: true };
+  renderUrlPreview();
+
+  try {
+    const res = await fetch('/api/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || 'URLの取得に失敗しました');
+
+    pendingUrl = { url: data.url, domain: data.domain, text: data.text, charCount: data.charCount, truncated: data.truncated, loading: false };
+    renderUrlPreview();
+  } catch (e) {
+    alert('URLの取得に失敗しました：' + e.message);
+    pendingUrl = null;
+    renderUrlPreview();
+    document.getElementById('urlBtn')?.classList.remove('active');
+  }
+}
+
+function renderUrlPreview() {
+  const bar = document.getElementById('urlPreviewBar');
+  if (!bar) return;
+  if (!pendingUrl) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const nameEl = document.getElementById('urlPreviewName');
+  if (!nameEl) return;
+  if (pendingUrl.loading) {
+    nameEl.textContent = 'ページを取得中...';
+  } else {
+    const truncMsg = pendingUrl.truncated ? '（一部省略）' : '';
+    nameEl.textContent = `${pendingUrl.domain}（${pendingUrl.charCount.toLocaleString()}文字取得済み${truncMsg}）`;
+  }
+}
+
+function removeUrl() {
+  pendingUrl = null;
+  const bar = document.getElementById('urlPreviewBar');
+  if (bar) bar.style.display = 'none';
+  document.getElementById('urlBtn')?.classList.remove('active');
+}
+
 function handlePaste(e) {
   const items = e.clipboardData?.items;
   if (!items) return;
@@ -1412,15 +1493,27 @@ function renderChatArea() {
         <div class="model-selector">
           ${MODELS.map(m => `<button class="model-btn ${currentModel===m.id?'active':''}" data-model="${m.id}" onclick="selectModel('${m.id}')">${m.label}</button>`).join('')}
         </div>
+        <div class="pdf-preview" id="urlInputBar" style="display:none">
+          <span>🔗</span>
+          <input type="url" id="urlInputField" class="url-input-field" placeholder="https://..." onkeydown="if(event.key==='Enter')confirmUrl()">
+          <button class="url-fetch-btn" onclick="confirmUrl()">取得</button>
+          <button class="pdf-remove-btn" onclick="cancelUrlInput()">✕</button>
+        </div>
+        <div class="pdf-preview" id="urlPreviewBar" style="display:none">
+          <span>🔗</span>
+          <span class="pdf-preview-name" id="urlPreviewName"></span>
+          <button class="pdf-remove-btn" onclick="removeUrl()">✕</button>
+        </div>
         <div class="input-wrap">
           <button class="pdf-btn" id="pdfBtn" onclick="triggerPdfUpload()" title="PDFをアップロード">📎</button>
           <button class="pdf-btn" id="imgBtn" onclick="triggerImageUpload()" title="画像をアップロード">🖼️</button>
+          <button class="pdf-btn" id="urlBtn" onclick="triggerUrlFetch()" title="URLを取得して分析">🔗</button>
           <textarea class="chat-input" id="chatInput"
             placeholder="メッセージを入力..."
             rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)" onpaste="handlePaste(event)"></textarea>
           <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
         </div>
-        <div class="input-hint">Enter で送信 · Shift+Enter で改行 · 📎 PDF · 🖼️ 画像</div>
+        <div class="input-hint">Enter で送信 · Shift+Enter で改行 · 📎 PDF · 🖼️ 画像 · 🔗 URL取得</div>
       </div>
     </div>`;
   renderMessages();
@@ -1578,7 +1671,7 @@ async function sendMessage() {
   const input = document.getElementById('chatInput');
   if (!input) return;
   const text = input.value.trim();
-  if ((!text && !pendingPdf && !pendingImage) || isLoading) return;
+  if ((!text && !pendingPdf && !pendingImage && !pendingUrl) || isLoading) return;
 
   if (pendingPdf && pendingPdf.loading) {
     alert('PDFを読み込み中です。少し待ってから送信してください。');
@@ -1588,11 +1681,16 @@ async function sendMessage() {
     alert('画像を読み込み中です。少し待ってから送信してください。');
     return;
   }
+  if (pendingUrl && pendingUrl.loading) {
+    alert('URLを取得中です。少し待ってから送信してください。');
+    return;
+  }
 
   const msgs = getMessages();
   const parts = [];
   if (pendingPdf) parts.push(`[PDF: ${pendingPdf.name}]`);
   if (pendingImage) parts.push(`[🖼 画像: ${pendingImage.name}]`);
+  if (pendingUrl && !pendingUrl.loading) parts.push(`[🔗 ${pendingUrl.domain}]`);
   if (text) parts.push(text);
   const displayText = parts.join('\n');
 
@@ -1602,13 +1700,15 @@ async function sendMessage() {
 
   const pdfToSend = pendingPdf;
   const imageToSend = pendingImage;
+  const urlToSend = pendingUrl;
   removePdf();
   removeImage();
+  removeUrl();
   renderMessages();
-  await callAPI(msgs, pdfToSend, imageToSend);
+  await callAPI(msgs, pdfToSend, imageToSend, urlToSend);
 }
 
-async function callAPI(msgs, pdfData = null, imageData = null) {
+async function callAPI(msgs, pdfData = null, imageData = null, urlData = null) {
   isLoading = true;
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) sendBtn.disabled = true;
@@ -1632,9 +1732,14 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
       const role = m.role === 'ai' ? 'assistant' : 'user';
       if (idx === msgs.length - 1 && m.role === 'user') {
         let content = m.content;
-        if (pdfData)   content = content.replace(`[PDF: ${pdfData.name}]\n`, '');
-        if (imageData) content = content.replace(`[🖼 画像: ${imageData.name}]\n`, '');
+        if (pdfData)   content = content.replace(`[PDF: ${pdfData.name}]\n`, '').replace(`[PDF: ${pdfData.name}]`, '');
+        if (imageData) content = content.replace(`[🖼 画像: ${imageData.name}]\n`, '').replace(`[🖼 画像: ${imageData.name}]`, '');
+        if (urlData)   content = content.replace(`[🔗 ${urlData.domain}]\n`, '').replace(`[🔗 ${urlData.domain}]`, '');
         content = content.trim();
+        if (urlData && !urlData.loading) {
+          const truncNote = urlData.truncated ? '\n（※ページが長いため一部省略）' : '';
+          content = `以下は「${urlData.url}」から取得したページの内容です${truncNote}：\n\n${urlData.text}\n\n---\n${content || 'このページの内容を分析してください。'}`;
+        }
         if (pdfData) {
           content = `以下は「${pdfData.name}」から抽出したテキストです：\n\n${pdfData.text}\n\n---\n${content || 'このPDFの内容を把握してください。'}`;
         }
