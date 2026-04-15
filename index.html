@@ -698,13 +698,15 @@ body {
 
   /* フォントサイズ */
   body { font-size: 16px; }
-  .bubble { font-size: 15px; line-height: 1.8; }
+  .bubble { font-size: 16px; line-height: 1.85; }
   .chat-input { font-size: 16px; }
-  .project-name { font-size: 14px; }
-  .project-desc, .section-label { font-size: 11px; }
-  .current-name { font-size: 15px; }
-  .topbar-btn { font-size: 13px; }
-  .bubble-action-btn { font-size: 12px; padding: 5px 12px; }
+  .project-name { font-size: 15px; }
+  .project-desc, .section-label { font-size: 12px; }
+  .current-name { font-size: 16px; }
+  .topbar-btn { font-size: 14px; }
+  .bubble-action-btn { font-size: 13px; padding: 5px 12px; }
+  .empty-title { font-size: 16px; }
+  .empty-desc { font-size: 14px; }
 
   /* バブル幅 */
   .bubble-wrap { max-width: 92%; }
@@ -727,8 +729,8 @@ body {
   .chat-area { padding: 12px 12px; min-height: 0; }
   .input-area { padding: 6px 12px 10px; }
 
-  /* キーボード表示中（input focus時）はモデル選択バーを隠してスペース確保 */
-  .input-area:focus-within .model-selector { display: none; }
+  /* モデル選択バーはキーボード表示時も消さない（消すとレイアウトがジャンプする） */
+  .model-selector { transition: none; }
 }
 
 /* ── LOGIN OVERLAY ── */
@@ -1115,8 +1117,16 @@ function renderSidebar() {
 }
 
 function selectProject(id) {
-  currentProjectId = id; pendingPdf = null;
-  renderSidebar(); renderChatArea(); closeSidebar();
+  if (currentProjectId === id) { closeSidebar(); return; }
+  currentProjectId = id; pendingPdf = null; pendingImage = null; pendingUrl = null;
+  // サイドバーのactiveクラスだけ即時更新（重い全再描画なし）
+  document.querySelectorAll('.project-item').forEach(el => {
+    const oc = el.getAttribute('onclick') || '';
+    el.classList.toggle('active', oc.includes(`'${id}'`));
+  });
+  closeSidebar();
+  // サイドバー閉じるアニメーション後にメイン描画（0.25s transition後）
+  setTimeout(() => { renderChatArea(); }, 260);
 }
 
 async function confirmDelete(id) {
@@ -1680,8 +1690,10 @@ function handleKey(e) {
 }
 
 function autoResize(el) {
-  el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  const newH = Math.min(el.scrollHeight, 120);
+  if (parseInt(el.style.height) !== newH) {
+    el.style.height = newH + 'px';
+  }
 }
 
 async function sendMessage() {
