@@ -958,8 +958,21 @@ body {
     <div class="modal-title" id="feedbackTypeLabel">👍 この回答の良い点を記憶</div>
     <div id="feedbackScopeArea" class="form-group"></div>
     <div class="form-group">
+      <label class="form-label">シーン（任意）</label>
+      <div style="display:flex;flex-wrap:wrap;gap:5px" id="feedbackSceneArea">
+        <button class="scope-btn active" id="fbSceneNone" onclick="selectFbScene('')">なし</button>
+        <button class="scope-btn" onclick="selectFbScene('書類不採用')">書類不採用</button>
+        <button class="scope-btn" onclick="selectFbScene('書類通過')">書類通過</button>
+        <button class="scope-btn" onclick="selectFbScene('面接通過')">面接通過</button>
+        <button class="scope-btn" onclick="selectFbScene('最終不採用')">最終不採用</button>
+        <button class="scope-btn" onclick="selectFbScene('内定')">内定</button>
+        <button class="scope-btn" onclick="selectFbScene('面接日程調整')">面接日程調整</button>
+        <button class="scope-btn" onclick="selectFbScene('スカウト')">スカウト</button>
+      </div>
+    </div>
+    <div class="form-group">
       <label class="form-label">AIに覚えさせたいこと</label>
-      <p style="font-size:11px;color:var(--text3);margin:-2px 0 6px">回答の内容ではなく「スタイル・形式・表現のルール」を書いてください。次回から反映されます。</p>
+      <p style="font-size:11px;color:var(--text3);margin:-2px 0 6px">シーンを選ぶと自動でタグが付き、そのシーンのときだけ記憶が使われます。</p>
       <textarea class="form-textarea" id="feedbackContent" style="min-height:90px"></textarea>
     </div>
     <div class="modal-actions">
@@ -985,9 +998,23 @@ body {
       <div style="display:flex;gap:8px;margin-bottom:4px" id="qmScopeArea"></div>
     </div>
     <div class="form-group">
+      <label class="form-label">シーン（任意）</label>
+      <div style="display:flex;flex-wrap:wrap;gap:5px" id="qmSceneArea">
+        <button class="scope-btn active" id="qmSceneNone" onclick="selectQmScene('')">なし</button>
+        <button class="scope-btn" onclick="selectQmScene('書類不採用')">書類不採用</button>
+        <button class="scope-btn" onclick="selectQmScene('書類通過')">書類通過</button>
+        <button class="scope-btn" onclick="selectQmScene('面接通過')">面接通過</button>
+        <button class="scope-btn" onclick="selectQmScene('最終不採用')">最終不採用</button>
+        <button class="scope-btn" onclick="selectQmScene('内定')">内定</button>
+        <button class="scope-btn" onclick="selectQmScene('面接日程調整')">面接日程調整</button>
+        <button class="scope-btn" onclick="selectQmScene('スカウト')">スカウト</button>
+        <button class="scope-btn" onclick="selectQmScene('一般')">一般</button>
+      </div>
+    </div>
+    <div class="form-group">
       <label class="form-label">内容</label>
-      <p style="font-size:11px;color:var(--text3);margin:-2px 0 6px">具体的なルール・好みを書いてください。次の会話から反映されます。</p>
-      <textarea class="form-textarea" id="quickMemContent" placeholder="例：メールは件名に【】を使う&#10;例：箇条書きで簡潔に、3行以内&#10;例：敬語は丁寧体に統一してほしい" style="min-height:90px"></textarea>
+      <p style="font-size:11px;color:var(--text3);margin:-2px 0 6px">シーンを選ぶと自動でタグが付き、そのシーンのときだけ記憶が呼ばれます。</p>
+      <textarea class="form-textarea" id="quickMemContent" placeholder="例：最後に応援メッセージを入れる&#10;例：件名は【〇次選考通過のご連絡】形式&#10;例：日程は3候補提示する" style="min-height:90px"></textarea>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeQuickMemory()">キャンセル</button>
@@ -2036,6 +2063,9 @@ function openFeedbackModal(msgIndex, type) {
   if (!msg) return;
 
   window._feedbackScope = 'global';
+  window._feedbackScene = '';
+  document.getElementById('fbSceneNone')?.classList.add('active');
+  document.querySelectorAll('#feedbackSceneArea .scope-btn:not(#fbSceneNone)').forEach(b => b.classList.remove('active'));
   const isGeneral = isGeneralChat(currentProjectId);
   const typeLabel = type === 'positive' ? '👍 この回答の良い点を記憶' : '👎 改善してほしい点を記憶';
   document.getElementById('feedbackTypeLabel').textContent = typeLabel;
@@ -2070,6 +2100,18 @@ function selectFeedbackScope(scope) {
   document.getElementById('scopeProject')?.classList.toggle('active', scope === 'project');
 }
 
+function selectFbScene(scene) {
+  window._feedbackScene = scene;
+  document.querySelectorAll('#feedbackSceneArea .scope-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+function selectQmScene(scene) {
+  window._qmScene = scene;
+  document.querySelectorAll('#qmSceneArea .scope-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
 function closeFeedbackModal() {
   document.getElementById('feedbackModalOverlay').style.display = 'none';
   feedbackMsgIndex = null;
@@ -2077,8 +2119,10 @@ function closeFeedbackModal() {
 }
 
 async function submitFeedback() {
-  const content = document.getElementById('feedbackContent').value.trim();
+  let content = document.getElementById('feedbackContent').value.trim();
   if (!content) { alert('内容を入力してください'); return; }
+  const scene = window._feedbackScene || '';
+  if (scene) content = `[${scene}] ${content}`;
 
   const scope = window._feedbackScope || 'global';
   const body = { scope, type: feedbackType, content };
@@ -2212,9 +2256,12 @@ JSONのみで返答：{"type":"positive"または"negative","content":"ルール
 function openQuickMemory() {
   window._qmType = 'positive';
   window._qmScope = 'global';
+  window._qmScene = '';
   document.getElementById('qmTypePos').classList.add('active');
   document.getElementById('qmTypeNeg').classList.remove('active');
   document.getElementById('quickMemContent').value = '';
+  document.getElementById('qmSceneNone')?.classList.add('active');
+  document.querySelectorAll('#qmSceneArea .scope-btn:not(#qmSceneNone)').forEach(b => b.classList.remove('active'));
 
   const isGeneral = isGeneralChat(currentProjectId);
   let scopeHtml = `<button class="scope-btn active" id="qmScopeGlobal" onclick="document.getElementById('qmScopeGlobal').classList.add('active');document.getElementById('qmScopeProject')?.classList.remove('active');window._qmScope='global'">🌐 グローバル</button>`;
@@ -2232,8 +2279,10 @@ function closeQuickMemory() {
 }
 
 async function saveQuickMemory() {
-  const content = document.getElementById('quickMemContent').value.trim();
+  let content = document.getElementById('quickMemContent').value.trim();
   if (!content) { alert('内容を入力してください'); return; }
+  const scene = window._qmScene || '';
+  if (scene) content = `[${scene}] ${content}`;
   const scope = window._qmScope || 'global';
   const type  = window._qmType  || 'positive';
   const body  = { scope, type, content };

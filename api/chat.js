@@ -210,11 +210,32 @@ export default async function handler(req) {
             const words = contextText.match(/[\p{L}\p{N}]{2,}/gu) || [];
             const keywords = [...new Set(words)];
 
-            // キーワードマッチングでスコアリング
+            // シーンタグのマッピング（会話コンテキストに含まれるシーンを検出）
+            const SCENE_KEYWORDS = {
+              '書類不採用': ['書類不採用', '書類選考', '不採用', '書類落ち', '書類で', '書類ng'],
+              '書類通過': ['書類通過', '書類選考通過', '書類ok', '書類合格'],
+              '面接通過': ['面接通過', '面接合格', '面接ok', '次の選考', '次回選考'],
+              '最終不採用': ['最終不採用', '最終選考', '最終面接不採用', '残念ながら'],
+              '内定': ['内定', 'オファー', '採用', '合格', 'offer'],
+              '面接日程調整': ['面接日程', '日程調整', '面接の日程', 'スケジュール調整', '面接設定'],
+              'スカウト': ['スカウト', 'スカウトメール', 'アプローチ', '候補者へのご連絡', 'ダイレクト'],
+              '一般': [],
+            };
+
+            // 会話中に該当するシーンを特定
+            const activeScenes = Object.entries(SCENE_KEYWORDS)
+              .filter(([, kws]) => kws.some(kw => contextText.includes(kw)))
+              .map(([scene]) => scene);
+
+            // キーワードマッチングでスコアリング（シーンタグ一致でボーナス）
             function scoreAndPick(list, limit) {
               const scored = list.map(mem => {
                 const memLower = mem.content.toLowerCase();
-                const score = keywords.filter(kw => memLower.includes(kw)).length;
+                let score = keywords.filter(kw => memLower.includes(kw)).length;
+                // シーンタグが一致する記憶には+10ボーナス（優先的に選ばれる）
+                const sceneMatch = activeScenes.some(s => mem.content.startsWith(`[${s}]`));
+                if (sceneMatch) score += 10;
+                // シーンタグなし（一般ルール）も常に有効
                 return { ...mem, score };
               });
               // スコア降順 → 新しい順でソート
