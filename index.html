@@ -1899,7 +1899,7 @@ JSON形式（ある場合のみ）：
 ${exchange}`;
 
   try {
-    const res = await fetch('/api/chat', {
+    const res = await apiFetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2143,7 +2143,7 @@ JSONのみで返答：{"type":"positive"または"negative","content":"ルール
 修正後：${edited.slice(0, 400)}`;
 
   try {
-    const res = await fetch('/api/chat', {
+    const res = await apiFetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2219,7 +2219,7 @@ async function saveQuickMemory() {
   const btn = document.getElementById('quickMemSaveBtn');
   btn.textContent = '保存中...'; btn.disabled = true;
   try {
-    const res = await fetch('/api/memories', {
+    const res = await apiFetch('/api/memories', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
@@ -2393,7 +2393,7 @@ async function distillMemories(scope) {
 ${memSummary}`;
 
   try {
-    const res = await fetch('/api/chat', {
+    const res = await apiFetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2435,7 +2435,7 @@ ${memSummary}`;
     for (const mem of validMemories) {
       const body = { scope, type: mem.type, content: mem.content.trim() };
       if (scope === 'project') body.project_id = currentProjectId;
-      await fetch('/api/memories', {
+      await apiFetch('/api/memories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
