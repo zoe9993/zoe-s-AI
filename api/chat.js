@@ -170,9 +170,21 @@ async function callGemini(finalSystem, messages, imageData) {
 }
 
 // ── メインハンドラー ───────────────────────────────────────────────────
+function checkAuth(req) {
+  const token = req.headers.get('X-Auth-Token') || '';
+  const expected = process.env.SITE_PASSWORD || '';
+  return expected && token === expected;
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
+  }
+
+  if (!checkAuth(req)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   try {
@@ -186,6 +198,13 @@ export default async function handler(req) {
 
     // 直近10件だけ使用（トークン節約）
     const trimmedMessages = Array.isArray(messages) ? messages.slice(-10) : [];
+
+    // メッセージサイズ制限（1件あたり最大50,000文字）
+    for (const m of trimmedMessages) {
+      if (typeof m.content === 'string' && m.content.length > 50000) {
+        return errorResponse('メッセージが長すぎます', 400);
+      }
+    }
 
     // ── RAG: 記憶の取得とキーワードマッチング ──────────────────────────────
     let memoriesText = '';

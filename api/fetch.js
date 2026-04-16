@@ -1,8 +1,20 @@
 export const config = { runtime: 'edge' };
 
+function checkAuth(req) {
+  const token = req.headers.get('X-Auth-Token') || '';
+  const expected = process.env.SITE_PASSWORD || '';
+  return expected && token === expected;
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
+  }
+
+  if (!checkAuth(req)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   try {

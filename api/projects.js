@@ -1,6 +1,18 @@
 export const config = { runtime: 'edge' };
 
+function checkAuth(req) {
+  const token = req.headers.get('X-Auth-Token') || '';
+  const expected = process.env.SITE_PASSWORD || '';
+  return expected && token === expected;
+}
+
 export default async function handler(req) {
+  if (!checkAuth(req)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
 

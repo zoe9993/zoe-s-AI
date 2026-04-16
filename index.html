@@ -1056,10 +1056,56 @@ const MODELS = [
   { id: 'gemini-2.5-flash',  label: 'Gemini 2.5 Flash' },
 ];
 
+// 認証付きfetchラッパー
+function apiFetch(url, options = {}) {
+  const token = sessionStorage.getItem('zoe_token') || '';
+  const headers = { ...(options.headers || {}), 'X-Auth-Token': token };
+  return fetch(url, { ...options, headers });
+}
+
 let projects = [], currentProjectId = null, editingProjectId = null;
 let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null;
 let currentModel = 'claude-sonnet-4';
 let autoLearnEnabled = localStorage.getItem('autoLearn') === 'on';
+
+// ── プライバシーモード ──────────────────────────────────────────────────
+let privacyMode = false;
+let privacyMap = new Map();
+let privacyCounter = 0;
+const FAKE_NAMES = ['一二三','二三四','三四五','四五六','五六七','六七八','七八九','八九十','十一二','十二三','十三四','十四五'];
+const COMPANY_SUFFIXES = ['株式会社','有限会社','合同会社','合資会社'];
+// 「株式会社○○」または「○○株式会社」などをマッチ
+const COMPANY_REGEX = new RegExp(
+  '(?:' + COMPANY_SUFFIXES.join('|') + ')[^\\s、。！？\\n「」【】（）(){}<>]{1,20}' +
+  '|[^\\s、。！？\\n「」【】（）(){}<>]{1,20}(?:' + COMPANY_SUFFIXES.join('|') + ')',
+  'g'
+);
+
+function applyPrivacy(text) {
+  if (!privacyMode) return text;
+  return text.replace(COMPANY_REGEX, (match) => {
+    if (!privacyMap.has(match)) {
+      const suffix = COMPANY_SUFFIXES.find(s => match.includes(s)) || '株式会社';
+      const fakeName = FAKE_NAMES[privacyCounter % FAKE_NAMES.length] + suffix;
+      privacyCounter++;
+      privacyMap.set(match, fakeName);
+    }
+    return privacyMap.get(match);
+  });
+}
+
+function togglePrivacyMode() {
+  privacyMode = !privacyMode;
+  privacyMap.clear();
+  privacyCounter = 0;
+  const btn = document.getElementById('privacyBtn');
+  if (btn) {
+    btn.style.borderColor = privacyMode ? 'var(--accent)' : '';
+    btn.style.color = privacyMode ? 'var(--accent)' : '';
+    btn.innerHTML = privacyMode ? '🔓 <span>表示中</span>' : '🔒 <span>隠す</span>';
+  }
+  renderMessages();
+}
 
 /* ── AUTH ── */
 function isAuthenticated() {
@@ -1087,6 +1133,7 @@ async function submitLogin() {
     const data = await res.json();
     if (data.ok) {
       localStorage.setItem('zoe_auth', 'ok');
+      sessionStorage.setItem('zoe_token', password);
       document.getElementById('loginOverlay').style.display = 'none';
       startApp();
     } else {
@@ -1133,13 +1180,13 @@ async function init() {
 
 async function loadProjects() {
   try {
-    const res = await fetch('/api/projects');
+    const res = await apiFetch('/api/projects');
     if (res.ok) projects = await res.json();
   } catch(e) { projects = []; }
 }
 
 async function createProject(data) {
-  const res = await fetch('/api/projects', {
+  const res = await apiFetch('/api/projects', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
@@ -1147,14 +1194,14 @@ async function createProject(data) {
 }
 
 async function updateProject(id, data) {
-  await fetch(`/api/projects?id=${id}`, {
+  await apiFetch(`/api/projects?id=${id}`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
   });
 }
 
 async function deleteProjectAPI(id) {
-  await fetch(`/api/projects?id=${id}`, { method: 'DELETE' });
+  await apiFetch(`/api/projects?id=${id}`, { method: 'DELETE' });
 }
 
 function renderSidebar() {
@@ -1512,6 +1559,7 @@ function renderChatArea() {
   document.getElementById('topbarName').textContent = p.name;
   document.getElementById('topbarActions').innerHTML =
     (!isGeneral ? `<button class="topbar-btn primary" onclick="openEditModal('${p.id}')">⚙ <span>Prompt</span></button>` : '') +
+    `<button class="topbar-btn" id="privacyBtn" onclick="togglePrivacyMode()" title="プライバシーモード：会社名を仮名に置換">🔒 <span>隠す</span></button>` +
     `<button class="topbar-btn danger" onclick="clearChat()">🗑 <span>クリア</span></button>`;
 
   // 入力エリアを表示（作り直しなし）
@@ -1585,7 +1633,7 @@ function renderMessages() {
 
   chatArea.innerHTML = msgs.map((m, i) => {
     if (m.role === 'ai') {
-      const { main, memo } = splitMemo(m.content);
+      const { main, memo } = splitMemo(applyPrivacy(m.content));
       const memoHtml = memo ? `
         <div class="memo-box">
           <div class="memo-label">📋 確認メモ</div>
@@ -1611,7 +1659,7 @@ function renderMessages() {
         <div class="message user">
           <div class="avatar">Z</div>
           <div class="bubble-wrap">
-            <div class="bubble">${escapeHtml(m.content)}</div>
+            <div class="bubble">${escapeHtml(applyPrivacy(m.content))}</div>
             <div class="bubble-actions">
               <button class="bubble-action-btn" id="copybtn-${i}" onclick="copyMsg(${i})">📋 コピー</button>
             </div>
@@ -1743,7 +1791,7 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
     const abortCtrl = new AbortController();
     const abortTimer = setTimeout(() => abortCtrl.abort(), 90000); // 90秒タイムアウト
 
-    const res = await fetch('/api/chat', {
+    const res = await apiFetch('/api/chat', {
       method: 'POST',
       signal: abortCtrl.signal,
       headers: { 'Content-Type': 'application/json' },
@@ -1913,7 +1961,7 @@ async function acceptAutoLearn(type, content) {
   const body = { scope, type, content };
   if (scope === 'project') body.project_id = currentProjectId;
   try {
-    await fetch('/api/memories', {
+    await apiFetch('/api/memories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -2013,7 +2061,7 @@ async function submitFeedback() {
   const orig = btn.textContent;
   btn.textContent = '保存中...'; btn.disabled = true;
   try {
-    const res = await fetch('/api/memories', {
+    const res = await apiFetch('/api/memories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -2253,7 +2301,7 @@ function renderMemoryLib() {
 async function deleteMemory(id) {
   if (!confirm('この記憶を削除しますか？')) return;
   try {
-    const res = await fetch(`/api/memories?id=${id}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/memories?id=${id}`, { method: 'DELETE' });
     if (res.ok) {
       memoryLibData = memoryLibData.filter(m => m.id !== id);
       renderMemoryLib();
@@ -2307,7 +2355,7 @@ async function saveManualMemory() {
     body.project_id = currentProjectId;
   }
   try {
-    const res = await fetch('/api/memories', {
+    const res = await apiFetch('/api/memories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
@@ -2398,7 +2446,7 @@ ${memSummary}`;
     const delUrl = scope === 'global'
       ? '/api/memories?scope=global'
       : `/api/memories?scope=project&project_id=${encodeURIComponent(currentProjectId)}`;
-    await fetch(delUrl, { method: 'DELETE' });
+    await apiFetch(delUrl, { method: 'DELETE' });
 
     await loadMemoryLib();
     showToast(`🔥 ${distilled.memories.length}件に蒸留しました ✓`);
