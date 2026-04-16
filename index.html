@@ -606,18 +606,6 @@ body {
 
 #pdfFileInput, #imageFileInput { display: none; }
 
-.url-input-field {
-  flex: 1; background: none; border: none; color: var(--text);
-  font-family: 'Noto Sans JP', sans-serif; font-size: 12px; outline: none;
-  min-width: 0;
-}
-.url-input-field::placeholder { color: var(--text3); }
-.url-fetch-btn {
-  background: none; border: 1px solid rgba(91,138,240,0.3); color: var(--accent);
-  font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer;
-  font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0; transition: all 0.12s;
-}
-.url-fetch-btn:hover { background: var(--accent-light); }
 
 /* ── NO PROJECT ── */
 .no-project {
@@ -893,27 +881,11 @@ body {
   <div class="input-area" id="inputArea" style="display:none">
     <div class="input-inner">
       <div class="model-selector" id="modelSelector"></div>
-      <div class="pdf-preview" id="urlInputBar" style="display:none">
-        <span>🔗</span>
-        <input type="url" id="urlInputField" class="url-input-field" placeholder="https://..." onkeydown="if(event.key==='Enter')confirmUrl()">
-        <button class="url-fetch-btn" onclick="confirmUrl()">取得</button>
-        <button class="pdf-remove-btn" onclick="cancelUrlInput()">✕</button>
-      </div>
-      <div class="pdf-preview" id="urlPreviewBar" style="display:none"></div>
-      <div id="urlContentModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center">
-        <div style="background:#1e1e2e;border-radius:12px;padding:20px;max-width:680px;width:90%;max-height:70vh;display:flex;flex-direction:column;gap:12px">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <strong style="color:#e2e8f0">🔗 取得されたテキスト内容</strong>
-            <button onclick="document.getElementById('urlContentModal').style.display='none'" style="background:none;border:none;color:#94a3b8;cursor:pointer;font-size:18px">✕</button>
-          </div>
-          <p style="color:#94a3b8;font-size:12px;margin:0">⚠️ JavaScriptで描画されるサイトは内容が取得できない場合があります。以下が実際にAIに送られるテキストです。</p>
-          <pre id="urlContentText" style="background:#0f0f1a;color:#cbd5e1;padding:12px;border-radius:8px;font-size:12px;overflow-y:auto;max-height:45vh;white-space:pre-wrap;word-break:break-all;margin:0"></pre>
-        </div>
-      </div>
+
       <div class="input-wrap">
         <button class="pdf-btn" id="pdfBtn" onclick="triggerPdfUpload()" title="PDFをアップロード">📎</button>
         <button class="pdf-btn" id="imgBtn" onclick="triggerImageUpload()" title="画像をアップロード">🖼️</button>
-        <button class="pdf-btn" id="urlBtn" onclick="triggerUrlFetch()" title="URLを取得して分析">🔗</button>
+
         <textarea class="chat-input" id="chatInput" placeholder="メッセージを入力..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)" onpaste="handlePaste(event)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
       </div>
@@ -1085,7 +1057,7 @@ const MODELS = [
 ];
 
 let projects = [], currentProjectId = null, editingProjectId = null;
-let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null, pendingUrl = null;
+let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null;
 let currentModel = 'claude-sonnet-4';
 let autoLearnEnabled = localStorage.getItem('autoLearn') === 'on';
 
@@ -1228,7 +1200,7 @@ function renderSidebar() {
 
 function selectProject(id) {
   if (currentProjectId === id) { closeSidebar(); return; }
-  currentProjectId = id; pendingPdf = null; pendingImage = null; pendingUrl = null;
+  currentProjectId = id; pendingPdf = null; pendingImage = null;
   // サイドバーのactiveクラスだけ即時更新（重い全再描画なし）
   document.querySelectorAll('.project-item').forEach(el => {
     const oc = el.getAttribute('onclick') || '';
@@ -1473,82 +1445,6 @@ function removeImage() {
   document.getElementById('imgBtn')?.classList.remove('active');
 }
 
-// ── URL取得 ──────────────────────────────────────────────────────────────
-function triggerUrlFetch() {
-  const bar = document.getElementById('urlInputBar');
-  if (!bar) return;
-  bar.style.display = 'flex';
-  document.getElementById('urlInputField')?.focus();
-  document.getElementById('urlBtn')?.classList.add('active');
-}
-
-function cancelUrlInput() {
-  const bar = document.getElementById('urlInputBar');
-  if (bar) bar.style.display = 'none';
-  const field = document.getElementById('urlInputField');
-  if (field) field.value = '';
-  if (!pendingUrl) document.getElementById('urlBtn')?.classList.remove('active');
-}
-
-async function confirmUrl() {
-  const field = document.getElementById('urlInputField');
-  if (!field) return;
-  const url = field.value.trim();
-  if (!url) return;
-
-  cancelUrlInput();
-  pendingUrl = { url, domain: '', text: null, loading: true };
-  renderUrlPreview();
-
-  try {
-    const res = await fetch('/api/fetch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
-    });
-    const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error || 'URLの取得に失敗しました');
-
-    pendingUrl = { url: data.url, domain: data.domain, text: data.text, charCount: data.charCount, truncated: data.truncated, loading: false };
-    renderUrlPreview();
-  } catch (e) {
-    alert('URLの取得に失敗しました：' + e.message);
-    pendingUrl = null;
-    renderUrlPreview();
-    document.getElementById('urlBtn')?.classList.remove('active');
-  }
-}
-
-function renderUrlPreview() {
-  const bar = document.getElementById('urlPreviewBar');
-  if (!bar) return;
-  if (!pendingUrl) { bar.style.display = 'none'; bar.innerHTML = ''; return; }
-  bar.style.display = 'flex';
-  if (pendingUrl.loading) {
-    bar.innerHTML = `<span>🔗</span><span class="pdf-preview-name">ページを取得中...</span><button class="pdf-remove-btn" onclick="removeUrl()">✕</button>`;
-  } else {
-    const truncMsg = pendingUrl.truncated ? '（一部省略）' : '';
-    const label = `${pendingUrl.domain}（${pendingUrl.charCount.toLocaleString()}文字取得済み${truncMsg}）`;
-    bar.innerHTML = `<span>🔗</span><span class="pdf-preview-name">${label}</span><button onclick="showUrlContentPreview()" style="background:#3a3a5c;border:none;color:#a5b4fc;cursor:pointer;font-size:11px;padding:2px 7px;border-radius:4px;flex-shrink:0;white-space:nowrap">内容確認</button><button class="pdf-remove-btn" onclick="removeUrl()">✕</button>`;
-  }
-}
-
-function removeUrl() {
-  pendingUrl = null;
-  const bar = document.getElementById('urlPreviewBar');
-  if (bar) bar.style.display = 'none';
-  document.getElementById('urlBtn')?.classList.remove('active');
-}
-
-function showUrlContentPreview() {
-  if (!pendingUrl || !pendingUrl.text) return;
-  const modal = document.getElementById('urlContentModal');
-  const pre = document.getElementById('urlContentText');
-  if (!modal || !pre) return;
-  const preview = pendingUrl.text.slice(0, 3000);
-  pre.textContent = preview + (pendingUrl.text.length > 3000 ? '\n\n...（以下省略）' : '');
-  modal.style.display = 'flex';
-}
 
 function handlePaste(e) {
   const items = e.clipboardData?.items;
@@ -1622,7 +1518,6 @@ function renderChatArea() {
   document.getElementById('inputArea').style.display = '';
 
   renderMessages();
-  renderUrlPreview();
   document.getElementById('chatInput')?.focus();
 }
 
@@ -1779,7 +1674,7 @@ async function sendMessage() {
   const input = document.getElementById('chatInput');
   if (!input) return;
   const text = input.value.trim();
-  if ((!text && !pendingPdf && !pendingImage && !pendingUrl) || isLoading) return;
+  if ((!text && !pendingPdf && !pendingImage) || isLoading) return;
 
   if (pendingPdf && pendingPdf.loading) {
     alert('PDFを読み込み中です。少し待ってから送信してください。');
@@ -1789,16 +1684,11 @@ async function sendMessage() {
     alert('画像を読み込み中です。少し待ってから送信してください。');
     return;
   }
-  if (pendingUrl && pendingUrl.loading) {
-    alert('URLを取得中です。少し待ってから送信してください。');
-    return;
-  }
 
   const msgs = getMessages();
   const parts = [];
   if (pendingPdf) parts.push(`[PDF: ${pendingPdf.name}]`);
   if (pendingImage) parts.push(`[🖼 画像: ${pendingImage.name}]`);
-  if (pendingUrl && !pendingUrl.loading) parts.push(`[🔗 ${pendingUrl.domain}]`);
   if (text) parts.push(text);
   const displayText = parts.join('\n');
 
@@ -1808,15 +1698,13 @@ async function sendMessage() {
 
   const pdfToSend = pendingPdf;
   const imageToSend = pendingImage;
-  const urlToSend = pendingUrl;
   removePdf();
   removeImage();
-  removeUrl();
   renderMessages();
-  await callAPI(msgs, pdfToSend, imageToSend, urlToSend);
+  await callAPI(msgs, pdfToSend, imageToSend);
 }
 
-async function callAPI(msgs, pdfData = null, imageData = null, urlData = null) {
+async function callAPI(msgs, pdfData = null, imageData = null) {
   isLoading = true;
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) sendBtn.disabled = true;
@@ -1842,16 +1730,7 @@ async function callAPI(msgs, pdfData = null, imageData = null, urlData = null) {
         let content = m.content;
         if (pdfData)   content = content.replace(`[PDF: ${pdfData.name}]\n`, '').replace(`[PDF: ${pdfData.name}]`, '');
         if (imageData) content = content.replace(`[🖼 画像: ${imageData.name}]\n`, '').replace(`[🖼 画像: ${imageData.name}]`, '');
-        if (urlData)   content = content.replace(`[🔗 ${urlData.domain}]\n`, '').replace(`[🔗 ${urlData.domain}]`, '');
         content = content.trim();
-        if (urlData && !urlData.loading) {
-          const truncNote = urlData.truncated ? '\n（※ページが長いため一部省略）' : '';
-          const hasContent = urlData.text && urlData.text.trim().length > 200;
-          const contentWarning = hasContent
-            ? ''
-            : '\n\n⚠️【警告】このページはJavaScriptで動的に描画されているため、テキスト取得がほぼ空です。以下の内容で回答できない場合はその旨を明示し、自分の学習データで補完しないでください。';
-          content = `以下は「${urlData.url}」から取得したページのテキスト内容です${truncNote}${contentWarning}：\n\n${urlData.text || '（テキストを取得できませんでした）'}\n\n---\n【絶対ルール】\n- 上記テキストに明記されている情報のみ使用すること\n- テキストに存在しない数字・日付・住所・人数は「URLに記載なし」と書くこと\n- 自分の学習データ・事前知識で補完することは厳禁\n- 上記テキストが空または少ない場合は「このURLからは情報を取得できませんでした」と明示すること\n\n${content || 'このページの内容を分析してください。'}`;
-        }
         if (pdfData) {
           content = `以下は「${pdfData.name}」から抽出したテキストです：\n\n${pdfData.text}\n\n---\n${content || 'このPDFの内容を把握してください。'}`;
         }
