@@ -1253,6 +1253,7 @@ function renderSidebar() {
 function selectProject(id) {
   if (currentProjectId === id) { closeSidebar(); return; }
   currentProjectId = id; pendingPdf = null; pendingImage = null;
+  privacyMap.clear(); privacyCounter = 0;
   // サイドバーのactiveクラスだけ即時更新（重い全再描画なし）
   document.querySelectorAll('.project-item').forEach(el => {
     const oc = el.getAttribute('onclick') || '';
@@ -2510,7 +2511,7 @@ ${memSummary}`;
     await apiFetch(delUrl, { method: 'DELETE' });
 
     await loadMemoryLib();
-    showToast(`🔥 ${distilled.memories.length}件に蒸留しました ✓`);
+    showToast(`🔥 ${filtered.length}件 → ${validMemories.length}件に蒸留しました ✓`);
   } catch(e) {
     alert('蒸留エラー: ' + e.message);
   }
