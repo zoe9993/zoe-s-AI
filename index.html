@@ -1999,15 +1999,43 @@ function openFeedbackModal(msgIndex, type) {
   const typeLabel = type === 'positive' ? '👍 この回答の良い点を記憶' : '👎 改善してほしい点を記憶';
   document.getElementById('feedbackTypeLabel').textContent = typeLabel;
 
-  // placeholder と初期値を「何が良い/悪いか」の具体的な指示に変える
+  // AIが回答を自動分析して入力欄に候補を入れる
   const contentEl = document.getElementById('feedbackContent');
-  if (type === 'positive') {
-    contentEl.placeholder = '例：件名に【】を使った形式が好き\n例：箇条書きで簡潔にまとめてくれるスタイルが良い\n例：この丁寧な敬語のトーンを維持してほしい';
+  contentEl.value = '分析中...';
+  contentEl.disabled = true;
+  document.getElementById('feedbackSubmitBtn').disabled = true;
+
+  const msgText = msg.content.slice(0, 600);
+  const analyzePrompt = type === 'positive'
+    ? `以下のAI回答を読んで、ユーザーが気に入った可能性のあるスタイル・表現・構成のルールを1つだけ、30字以内で「〜してほしい」「〜が良い」形式で答えてください。JSONや説明は不要、ルール文のみ出力してください。\n\n${msgText}`
+    : `以下のAI回答を読んで、改善すべき点を1つだけ、30字以内で「〜しないでほしい」「〜にしてほしい」形式で答えてください。JSONや説明は不要、ルール文のみ出力してください。\n\n${msgText}`;
+
+  apiFetch('/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      systemPrompt: 'ユーザーの好みルールを1文で抽出するアシスタントです。ルール文のみ返してください。',
+      messages: [{ role: 'user', content: analyzePrompt }],
+      model: 'claude-sonnet-4'
+    })
+  }).then(async res => {
+    if (!res.ok) throw new Error();
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let text = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      text += dec.decode(value, { stream: true });
+    }
+    contentEl.value = text.trim();
+  }).catch(() => {
     contentEl.value = '';
-  } else {
-    contentEl.placeholder = '例：長すぎる。3段落以内に収めてほしい\n例：「貴社」ではなく「御社」を使ってほしい\n例：箇条書きではなく文章形式にしてほしい';
-    contentEl.value = '';
-  }
+  }).finally(() => {
+    contentEl.disabled = false;
+    document.getElementById('feedbackSubmitBtn').disabled = false;
+    contentEl.focus();
+  });
 
   let scopeHtml = '<label class="form-label" style="margin-bottom:6px;display:block">スコープ</label>'
     + '<div style="display:flex;gap:8px;margin-bottom:4px">'
@@ -2020,7 +2048,6 @@ function openFeedbackModal(msgIndex, type) {
   scopeHtml += '</div>';
   document.getElementById('feedbackScopeArea').innerHTML = scopeHtml;
   document.getElementById('feedbackModalOverlay').style.display = 'flex';
-  setTimeout(() => document.getElementById('feedbackContent').focus(), 50);
 }
 
 function selectFeedbackScope(scope) {
