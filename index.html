@@ -947,9 +947,12 @@ body {
       <p style="font-size:11px;color:var(--text3);margin:-2px 0 6px">シーンを選ぶと自動でタグが付き、そのシーンのときだけ記憶が使われます。</p>
       <textarea class="form-textarea" id="feedbackContent" style="min-height:90px"></textarea>
     </div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeFeedbackModal()">キャンセル</button>
-      <button class="btn btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()">記憶として保存</button>
+    <div class="modal-actions" style="flex-direction:column;gap:8px">
+      <div style="display:flex;gap:8px;width:100%">
+        <button class="btn btn-ghost" onclick="closeFeedbackModal()" style="flex:1">キャンセル</button>
+        <button class="btn btn-primary" id="feedbackSubmitBtn" onclick="submitFeedback()" style="flex:2">記憶として保存</button>
+      </div>
+      <button class="btn btn-ghost" id="feedbackSaveExampleBtn" onclick="saveFeedbackAsExample()" style="width:100%;font-size:12px;color:var(--text2)">📋 この回答をそのまま例文として保存（ニュアンスが難しいとき）</button>
     </div>
   </div>
 </div>
@@ -2066,6 +2069,36 @@ function selectQmScene(scene) {
   window._qmScene = scene;
   document.querySelectorAll('#qmSceneArea .scope-btn').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
+}
+
+async function saveFeedbackAsExample() {
+  const msgs = getMessages();
+  const msg = msgs[feedbackMsgIndex];
+  if (!msg) return;
+
+  const scene = window._feedbackScene || '';
+  const scope = window._feedbackScope || 'global';
+  const prefix = scene ? `[${scene}] ` : '';
+  // 回答の最初の200字を例文として保存
+  const example = msg.content.slice(0, 200).trim();
+  const content = `${prefix}【例文】${example}`;
+
+  const body = { scope, type: 'positive', content };
+  if (scope === 'project' && currentProjectId && !isGeneralChat(currentProjectId)) {
+    body.project_id = currentProjectId;
+  }
+
+  const btn = document.getElementById('feedbackSaveExampleBtn');
+  btn.textContent = '保存中...'; btn.disabled = true;
+  try {
+    const res = await apiFetch('/api/memories', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) { closeFeedbackModal(); showToast('例文を記憶しました ✓'); }
+    else alert('保存に失敗しました');
+  } catch(e) { alert('エラー: ' + e.message); }
+  finally { btn.textContent = '📋 この回答をそのまま例文として保存（ニュアンスが難しいとき）'; btn.disabled = false; }
 }
 
 function closeFeedbackModal() {
