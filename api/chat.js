@@ -69,6 +69,7 @@ async function callClaude(finalSystem, messages, imageData) {
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
       max_tokens: 4000,
+      temperature: 0.3,
       stream: true,
       system: [{ type: 'text', text: finalSystem, cache_control: { type: 'ephemeral' } }],
       messages: claudeMessages
@@ -116,6 +117,7 @@ async function callOpenAI(finalSystem, messages, imageData) {
     body: JSON.stringify({
       model: 'gpt-4o',
       max_tokens: 4000,
+      temperature: 0.3,
       stream: true,
       messages: openaiMessages
     })
@@ -156,7 +158,7 @@ async function callGemini(finalSystem, messages, imageData) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: finalSystem }] },
         contents,
-        generationConfig: { maxOutputTokens: 4000 }
+        generationConfig: { maxOutputTokens: 4000, temperature: 0.3 }
       })
     }
   );
@@ -318,7 +320,14 @@ CRITICAL OUTPUT RULES:
 - Do NOT add any headers like「修正版：」「修正案：」「以下が修正版です」
 - Do NOT add「修正ポイント：」「学習ポイント：」or any explanatory notes after the email
 - The output should be ready to copy and paste directly into an email client
-- Exception: if Zoe explicitly asks for explanation or correction points, then include them`;
+- Exception: if Zoe explicitly asks for explanation or correction points, then include them
+
+ANTI-HALLUCINATION RULES (ABSOLUTE):
+- NEVER invent, assume, or supplement facts not explicitly provided by Zoe
+- If information is missing or unclear, say so directly — do NOT fill in plausible-sounding details
+- For resume work: only use what is written in the candidate's original text. Zero exceptions.
+- For company research: only state facts you are certain about. If uncertain, say「確認が必要です」
+- When in doubt, ask Zoe for clarification rather than guessing`;
 
     // ── 履歴書ルール（プロジェクットチャットのみ追加）─────────────────────
     const RESUME_RULES = `
