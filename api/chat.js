@@ -175,7 +175,15 @@ async function callGemini(finalSystem, messages, imageData) {
 function checkAuth(req) {
   const token = req.headers.get('X-Auth-Token') || '';
   const expected = process.env.SITE_PASSWORD || '';
-  return expected && token === expected;
+  if (!expected) return false;
+  // 恒定时间比较（防止时序攻击）
+  const enc = new TextEncoder();
+  const bufA = enc.encode(token);
+  const bufB = enc.encode(expected);
+  if (bufA.byteLength !== bufB.byteLength) return false;
+  let diff = 0;
+  for (let i = 0; i < bufA.byteLength; i++) diff |= bufA[i] ^ bufB[i];
+  return diff === 0;
 }
 
 export default async function handler(req) {

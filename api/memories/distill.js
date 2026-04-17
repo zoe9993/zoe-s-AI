@@ -1,8 +1,27 @@
 export const config = { runtime: 'edge' };
 
+function checkAuth(req) {
+  const token = req.headers.get('X-Auth-Token') || '';
+  const expected = process.env.SITE_PASSWORD || '';
+  if (!expected) return false;
+  const enc = new TextEncoder();
+  const bufA = enc.encode(token);
+  const bufB = enc.encode(expected);
+  if (bufA.byteLength !== bufB.byteLength) return false;
+  let diff = 0;
+  for (let i = 0; i < bufA.byteLength; i++) diff |= bufA[i] ^ bufB[i];
+  return diff === 0;
+}
+
 export default async function handler(req) {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
+  }
+
+  if (!checkAuth(req)) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401, headers: { 'Content-Type': 'application/json' }
+    });
   }
 
   const SUPABASE_URL  = process.env.SUPABASE_URL;

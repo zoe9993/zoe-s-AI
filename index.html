@@ -6,6 +6,7 @@
 <title>Zoe's AI Assistant</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
   if (typeof pdfjsLib !== 'undefined') {
@@ -1533,7 +1534,9 @@ function saveMessages(msgs) {
   } catch(e) {
     // 容量超過時：古いメッセージを半分に削って再試行
     const trimmed = msgs.slice(-Math.floor(msgs.length / 2));
-    try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch(_) {}
+    try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch(_) {
+      showToast('⚠ ストレージ容量が不足しています。古い会話をクリアしてください。');
+    }
   }
 }
 
@@ -1590,7 +1593,10 @@ function splitMemo(text) {
 }
 
 function renderMarkdown(text) {
-  if (typeof marked !== 'undefined') return marked.parse(text);
+  if (typeof marked !== 'undefined') {
+    const raw = marked.parse(text);
+    return typeof DOMPurify !== 'undefined' ? DOMPurify.sanitize(raw) : raw;
+  }
   return escapeHtml(text).replace(/\n/g, '<br>');
 }
 
@@ -1603,9 +1609,10 @@ function copyAsRichText(text) {
   if (!window.ClipboardItem) return plainCopy();
 
   try {
-    const html = typeof marked !== 'undefined'
+    let html = typeof marked !== 'undefined'
       ? marked.parse(text)
       : text.replace(/\n/g, '<br>');
+    if (typeof DOMPurify !== 'undefined') html = DOMPurify.sanitize(html);
 
     // Blobを先に作成してからClipboardItemに渡す
     const htmlBlob = new Blob([html], { type: 'text/html' });
@@ -1678,7 +1685,7 @@ function renderMessages() {
 
 function escapeHtml(t) {
   if (!t) return '';
-  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 function clearChat() {
@@ -2493,7 +2500,12 @@ ${memSummary}`;
     );
     if (validMemories.length === 0) throw new Error('有効な記憶がありません');
 
-    // 先に新しい記憶を保存してから古いものを削除（データ消失防止）
+    // 先に古い記憶をIDで削除してから新しいものを保存（新記憶の誤削除を防止）
+    for (const mem of filtered) {
+      await apiFetch(`/api/memories?id=${encodeURIComponent(mem.id)}`, { method: 'DELETE' });
+    }
+
+    // 削除成功後に新しい記憶を保存
     for (const mem of validMemories) {
       const body = { scope, type: mem.type, content: mem.content.trim() };
       if (scope === 'project') body.project_id = currentProjectId;
@@ -2503,12 +2515,6 @@ ${memSummary}`;
         body: JSON.stringify(body)
       });
     }
-
-    // 保存成功後に古い記憶を削除
-    const delUrl = scope === 'global'
-      ? '/api/memories?scope=global'
-      : `/api/memories?scope=project&project_id=${encodeURIComponent(currentProjectId)}`;
-    await apiFetch(delUrl, { method: 'DELETE' });
 
     await loadMemoryLib();
     showToast(`🔥 ${filtered.length}件 → ${validMemories.length}件に蒸留しました ✓`);

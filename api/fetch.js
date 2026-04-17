@@ -3,7 +3,32 @@ export const config = { runtime: 'edge' };
 function checkAuth(req) {
   const token = req.headers.get('X-Auth-Token') || '';
   const expected = process.env.SITE_PASSWORD || '';
-  return expected && token === expected;
+  if (!expected) return false;
+  const enc = new TextEncoder();
+  const bufA = enc.encode(token);
+  const bufB = enc.encode(expected);
+  if (bufA.byteLength !== bufB.byteLength) return false;
+  let diff = 0;
+  for (let i = 0; i < bufA.byteLength; i++) diff |= bufA[i] ^ bufB[i];
+  return diff === 0;
+}
+
+// SSRF 防护：屏蔽内网/保留 IP 地址
+function isPrivateHost(hostname) {
+  // 屏蔽 localhost
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+  if (hostname.endsWith('.local') || hostname.endsWith('.internal')) return true;
+  // 屏蔽私有 IP 段
+  const parts = hostname.split('.').map(Number);
+  if (parts.length === 4 && parts.every(n => !isNaN(n))) {
+    if (parts[0] === 10) return true;                                         // 10.0.0.0/8
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;    // 172.16.0.0/12
+    if (parts[0] === 192 && parts[1] === 168) return true;                    // 192.168.0.0/16
+    if (parts[0] === 169 && parts[1] === 254) return true;                    // 169.254.0.0/16 (link-local / cloud metadata)
+    if (parts[0] === 0) return true;                                          // 0.0.0.0/8
+    if (parts[0] === 127) return true;                                        // 127.0.0.0/8
+  }
+  return false;
 }
 
 export default async function handler(req) {
@@ -38,6 +63,13 @@ export default async function handler(req) {
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
       return new Response(JSON.stringify({ error: 'HTTPまたはHTTPSのURLのみ対応しています' }), {
         status: 400, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
+    // SSRF 防护：禁止访问内网地址
+    if (isPrivateHost(parsedUrl.hostname)) {
+      return new Response(JSON.stringify({ error: '内部ネットワークへのアクセスは許可されていません' }), {
+        status: 403, headers: { 'Content-Type': 'application/json' }
       });
     }
 
