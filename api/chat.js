@@ -251,19 +251,51 @@ export default async function handler(req) {
               '一般': [],
             };
 
+            // 同義語マッピング（中日英の表記揺れを吸収）
+            const SYNONYMS = [
+              ['履歴書', '職務経歴書', 'レジュメ', 'resume', 'cv', '简历'],
+              ['面接', '面談', 'interview', '面试'],
+              ['企業', '会社', '法人', 'company', '公司', '企业'],
+              ['候補者', '応募者', 'candidate', '候选人'],
+              ['求人', '求人票', 'ジョブ', 'job', '職位', '岗位', '招聘'],
+              ['メール', 'email', 'mail', '邮件'],
+              ['スカウト', 'scout', 'ダイレクト', 'dm', '直接联系'],
+              ['年収', '給与', '給料', 'salary', '薪资', '报酬'],
+              ['経験', '実績', 'experience', '经验', '经历'],
+              ['スキル', '技術', '能力', 'skill', '技能'],
+              ['不採用', 'お見送り', 'reject', '不合格', '落选'],
+              ['内定', 'オファー', 'offer', '录用'],
+              ['日程', 'スケジュール', 'schedule', '安排', '日程调整'],
+            ];
+
+            // キーワードを同義語で拡張
+            const expandedKeywords = [...keywords];
+            for (const kw of keywords) {
+              for (const group of SYNONYMS) {
+                if (group.some(syn => syn === kw || kw.includes(syn))) {
+                  for (const syn of group) {
+                    if (!expandedKeywords.includes(syn)) expandedKeywords.push(syn);
+                  }
+                }
+              }
+            }
+
             // 会話中に該当するシーンを特定
             const activeScenes = Object.entries(SCENE_KEYWORDS)
               .filter(([, kws]) => kws.some(kw => contextText.includes(kw)))
               .map(([scene]) => scene);
 
-            // キーワードマッチングでスコアリング（シーンタグ一致でボーナス）
+            // キーワードマッチングでスコアリング（シーンタグ一致 + 使用回数でボーナス）
             function scoreAndPick(list, limit) {
               const scored = list.map(mem => {
                 const memLower = mem.content.toLowerCase();
-                let score = keywords.filter(kw => memLower.includes(kw)).length;
+                let score = expandedKeywords.filter(kw => memLower.includes(kw)).length;
                 // シーンタグが一致する記憶には+10ボーナス（優先的に選ばれる）
                 const sceneMatch = activeScenes.some(s => mem.content.startsWith(`[${s}]`));
                 if (sceneMatch) score += 10;
+                // 使用回数ボーナス（hit_countが高い＝よく使われるルール）
+                const hitCount = mem.hit_count || 0;
+                score += Math.min(hitCount, 10); // 最大+10ボーナス
                 // シーンタグなし（一般ルール）も常に有効
                 return { ...mem, score };
               });
@@ -273,9 +305,18 @@ export default async function handler(req) {
             }
 
             // GlobalとProjectを枠を分けて取得（競合させない）
-            const globals  = scoreAndPick(allMemories.filter(m => m.scope === 'global'), 5);
-            const projects = scoreAndPick(allMemories.filter(m => m.scope === 'project'), 5);
+            const globals  = scoreAndPick(allMemories.filter(m => m.scope === 'global'), 8);
+            const projects = scoreAndPick(allMemories.filter(m => m.scope === 'project'), 8);
             const selected = [...globals, ...projects];
+
+            // 選ばれた記憶のhit_countを非同期で更新（レスポンスを待たない）
+            for (const mem of selected) {
+              fetch(`${SUPABASE_URL}/rest/v1/memories?id=eq.${mem.id}`, {
+                method: 'PATCH',
+                headers: { ...{ 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ hit_count: (mem.hit_count || 0) + 1 })
+              }).catch(() => {});
+            }
 
             const positives = selected.filter(m => m.type === 'positive').map(m => `・${m.content}`).join('\n');
             const negatives = selected.filter(m => m.type === 'negative').map(m => `・${m.content}`).join('\n');
@@ -335,7 +376,20 @@ ANTI-HALLUCINATION RULES (ABSOLUTE):
 - If information is missing or unclear, say so directly — do NOT fill in plausible-sounding details
 - For resume work: only use what is written in the candidate's original text. Zero exceptions.
 - For company research: only state facts you are certain about. If uncertain, say「確認が必要です」
-- When in doubt, ask Zoe for clarification rather than guessing`;
+- When in doubt, ask Zoe for clarification rather than guessing
+
+CONFIDENCE & UNCERTAINTY RULES (ABSOLUTE):
+- You MUST honestly assess your confidence for every factual claim
+- When you are NOT sure about something, explicitly say so using phrases like:
+  「この点は確認が必要です」「正確な情報は確認できていません」「不確かですが」「確実ではありませんが」
+- NEVER present uncertain information as if it were fact
+- For company info (founding year, revenue, employee count, etc.): if you are not 100% certain, say「最新情報の確認をお勧めします」
+- For salary ranges, market data, industry statistics: always note these are estimates unless from a specific source
+- If Zoe asks something you don't know, say「わかりません」or「情報が不足しています」— this is ALWAYS better than guessing
+- DO NOT hedge everything — when you ARE confident (grammar corrections, email format, general business manners), be direct and clear
+- Priority order: Accuracy > Helpfulness > Speed. Never sacrifice accuracy for a more complete-sounding answer
+- When providing company research: separate「確認済みの情報」from「要確認の情報」so Zoe can verify
+- If you catch yourself about to write something you're not sure about, STOP and flag it instead`;
 
     // ── 履歴書ルール（プロジェクットチャットのみ追加）─────────────────────
     const RESUME_RULES = `

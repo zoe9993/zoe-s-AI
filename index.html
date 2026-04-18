@@ -1895,14 +1895,19 @@ function updateAutoLearnUI() {
 
 async function runAutoLearn() {
   const msgs = getMessages();
-  if (msgs.length < 2) return;
-  // 直近1往復（ユーザー→AI）を対象
-  const last = msgs.slice(-2);
-  const exchange = last.map(m => `${m.role === 'ai' ? 'AI' : 'Zoe'}: ${m.content.slice(0, 300)}`).join('\n\n');
+  if (msgs.length < 4) return;
+  // 直近3往復を対象（より多くの文脈から学習）
+  const last = msgs.slice(-6);
+  const exchange = last.map(m => `${m.role === 'ai' ? 'AI' : 'Zoe'}: ${m.content.slice(0, 500)}`).join('\n\n');
 
-  const prompt = `以下はZoe（採用コンサルタント）とAIの会話の1往復です。
-Zoeの好み・スタイル・表現のルールとして次回以降に活かせるものが1つでもあれば、JSON形式で返してください。
-明確なパターンがなければ必ず「なし」とだけ返してください。
+  const prompt = `以下はZoe（採用コンサルタント）とAIの直近の会話です。
+Zoeの好み・スタイル・表現パターンとして次回以降に活かせるルールがあれば、JSON形式で返してください。
+
+注意：
+- Zoeが修正・やり直しを指示した場合、その修正意図をルール化する
+- Zoeが特定の表現を選んだ場合、その表現パターンをルール化する
+- 単なる事実のやり取り（日程確認など）はルールではない → 「なし」と返す
+- 明確なパターンがなければ必ず「なし」とだけ返してください
 
 JSON形式（ある場合のみ）：
 {"type":"positive"または"negative","content":"30字以内のルール"}
@@ -1968,8 +1973,43 @@ function showAutoLearnSuggestion({ type, content }) {
   setTimeout(() => toast.remove(), 15000);
 }
 
+// 記憶の重複チェック（類似度が高い既存記憶があればスキップ）
+function isDuplicateMemory(content, existingMemories) {
+  const normalize = s => s.toLowerCase().replace(/[、。！？・\s]/g, '');
+  const newNorm = normalize(content);
+  for (const mem of existingMemories) {
+    const existNorm = normalize(mem.content);
+    // 完全一致
+    if (newNorm === existNorm) return true;
+    // 一方が他方を含む（部分一致）
+    if (newNorm.includes(existNorm) || existNorm.includes(newNorm)) return true;
+    // 文字の重複率が80%以上なら類似と判定
+    const shorter = newNorm.length <= existNorm.length ? newNorm : existNorm;
+    const longer = newNorm.length > existNorm.length ? newNorm : existNorm;
+    let matches = 0;
+    for (const ch of shorter) { if (longer.includes(ch)) matches++; }
+    if (shorter.length > 0 && matches / shorter.length > 0.8 && longer.length / shorter.length < 1.5) return true;
+  }
+  return false;
+}
+
 async function acceptAutoLearn(type, content) {
   const scope = isGeneralChat(currentProjectId) ? 'global' : 'project';
+
+  // 重複チェック：既存の記憶と比較
+  try {
+    let checkUrl = `/api/memories?scope=${scope}`;
+    if (scope === 'project') checkUrl += `&project_id=${encodeURIComponent(currentProjectId)}`;
+    const existRes = await apiFetch(checkUrl);
+    if (existRes.ok) {
+      const existing = await existRes.json();
+      if (isDuplicateMemory(content, existing)) {
+        showToast('📝 類似のルールが既にあります（スキップ）');
+        return;
+      }
+    }
+  } catch(_e) {}
+
   const body = { scope, type, content };
   if (scope === 'project') body.project_id = currentProjectId;
   try {
@@ -2130,6 +2170,19 @@ async function submitFeedback() {
   const orig = btn.textContent;
   btn.textContent = '保存中...'; btn.disabled = true;
   try {
+    // 重複チェック
+    let checkUrl = `/api/memories?scope=${scope}`;
+    if (scope === 'project' && body.project_id) checkUrl += `&project_id=${encodeURIComponent(body.project_id)}`;
+    const existRes = await apiFetch(checkUrl);
+    if (existRes.ok) {
+      const existing = await existRes.json();
+      if (isDuplicateMemory(content, existing)) {
+        closeFeedbackModal();
+        showToast('📝 類似のルールが既にあります（スキップ）');
+        return;
+      }
+    }
+
     const res = await apiFetch('/api/memories', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
