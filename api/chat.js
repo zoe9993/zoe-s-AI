@@ -206,8 +206,16 @@ export default async function handler(req) {
       year: 'numeric', month: 'long', day: 'numeric', weekday: 'long'
     });
 
-    // 直近10件だけ使用（トークン節約）
-    const trimmedMessages = Array.isArray(messages) ? messages.slice(-10) : [];
+    // 最初のメッセージ（原文PDF）を常に保持 + 直近10件
+    const allMessages = Array.isArray(messages) ? messages : [];
+    let trimmedMessages;
+    if (allMessages.length > 11) {
+      const first = allMessages[0];
+      const recent = allMessages.slice(-10);
+      trimmedMessages = recent[0] === first ? recent : [first, ...recent];
+    } else {
+      trimmedMessages = allMessages.slice(-10);
+    }
 
     // メッセージサイズ制限（1件あたり最大50,000文字）
     for (const m of trimmedMessages) {
