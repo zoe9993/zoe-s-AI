@@ -40,7 +40,7 @@ function toPlainStream(res, extractText) {
 }
 
 // ── Claude Sonnet 4.6 (Anthropic) ──────────────────────────────────────
-async function callClaude(finalSystem, messages, imageData) {
+async function callClaude(finalSystem, messages, imageData, isResume) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return errorResponse('ANTHROPIC_API_KEYが設定されていません');
 
@@ -68,8 +68,8 @@ async function callClaude(finalSystem, messages, imageData) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4000,
-      temperature: 0.5,
+      max_tokens: isResume ? 6000 : 4000,
+      temperature: isResume ? 0.3 : 0.5,
       stream: true,
       system: [{ type: 'text', text: finalSystem, cache_control: { type: 'ephemeral' } }],
       messages: claudeMessages
@@ -87,7 +87,7 @@ async function callClaude(finalSystem, messages, imageData) {
 }
 
 // ── GPT-4o (OpenAI) ─────────────────────────────────────────────────
-async function callOpenAI(finalSystem, messages, imageData) {
+async function callOpenAI(finalSystem, messages, imageData, isResume) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return errorResponse('OPENAI_API_KEYが設定されていません');
 
@@ -116,8 +116,8 @@ async function callOpenAI(finalSystem, messages, imageData) {
     },
     body: JSON.stringify({
       model: 'gpt-4o',
-      max_tokens: 4000,
-      temperature: 0.5,
+      max_tokens: isResume ? 6000 : 4000,
+      temperature: isResume ? 0.3 : 0.5,
       stream: true,
       messages: openaiMessages
     })
@@ -132,7 +132,7 @@ async function callOpenAI(finalSystem, messages, imageData) {
 }
 
 // ── Gemini 2.5 Flash (Google) ─────────────────────────────────────────
-async function callGemini(finalSystem, messages, imageData) {
+async function callGemini(finalSystem, messages, imageData, isResume) {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) return errorResponse('GOOGLE_API_KEYが設定されていません');
 
@@ -158,7 +158,7 @@ async function callGemini(finalSystem, messages, imageData) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: finalSystem }] },
         contents,
-        generationConfig: { maxOutputTokens: 4000, temperature: 0.5 }
+        generationConfig: { maxOutputTokens: isResume ? 6000 : 4000, temperature: isResume ? 0.3 : 0.5 }
       })
     }
   );
@@ -417,9 +417,10 @@ CONFIDENCE & UNCERTAINTY RULES (ABSOLUTE):
       ? `${BASE_SYSTEM}\n\n---\n\n${systemPrompt}`
       : BASE_SYSTEM;
 
-    if (model === 'gpt-4o')           return await callOpenAI(finalSystem, trimmedMessages, imageData);
-    if (model === 'gemini-2.5-flash') return await callGemini(finalSystem, trimmedMessages, imageData);
-    return await callClaude(finalSystem, trimmedMessages, imageData);
+    const isResume = !!project_id;
+    if (model === 'gpt-4o')           return await callOpenAI(finalSystem, trimmedMessages, imageData, isResume);
+    if (model === 'gemini-2.5-flash') return await callGemini(finalSystem, trimmedMessages, imageData, isResume);
+    return await callClaude(finalSystem, trimmedMessages, imageData, isResume);
 
   } catch(e) {
     return new Response(JSON.stringify({ error: e.message }), {
