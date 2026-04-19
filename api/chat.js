@@ -539,7 +539,7 @@ CONFIDENCE & UNCERTAINTY RULES (ABSOLUTE):
     const BASE_SYSTEM = project_id ? CORE_SYSTEM + RESUME_RULES : CORE_SYSTEM;
 
     // プロジェクトチャット（履歴書処理）は低温度で安定・正確な出力を優先
-    const temperature = project_id ? 0.35 : 0.5;
+    const temperature = project_id ? 0.4 : 0.5;
 
     const finalSystem = systemPrompt
       ? `${BASE_SYSTEM}${memoriesText}\n\n---\n\n${systemPrompt}`
