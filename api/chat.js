@@ -227,6 +227,110 @@ export default async function handler(req) {
       }
     }
 
+    // ── RAG: 記憶の取得とキーワードマッチング ──────────────────────────────
+    let memoriesText = '';
+    try {
+      const SUPABASE_URL = process.env.SUPABASE_URL;
+      const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
+      if (SUPABASE_URL && SUPABASE_KEY) {
+        let memQuery = `${SUPABASE_URL}/rest/v1/memories?select=*&order=created_at.asc`;
+        if (project_id) {
+          memQuery += `&or=(scope.eq.global,and(scope.eq.project,project_id.eq.${encodeURIComponent(project_id)}))`;
+        } else {
+          memQuery += `&scope=eq.global`;
+        }
+        const memRes = await fetch(memQuery, {
+          headers: { 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` }
+        });
+        if (memRes.ok) {
+          const allMemories = await memRes.json();
+          if (allMemories.length > 0) {
+            const contextText = trimmedMessages.slice(-5).map(m => m.content).join(' ').toLowerCase();
+            const words = contextText.match(/[\p{L}\p{N}]{2,}/gu) || [];
+            const keywords = [...new Set(words)];
+
+            const SCENE_KEYWORDS = {
+              '書類不採用': ['書類不採用', '書類選考', '不採用', '書類落ち', '書類で', '書類ng'],
+              '書類通過': ['書類通過', '書類選考通過', '書類ok', '書類合格'],
+              '面接通過': ['面接通過', '面接合格', '面接ok', '次の選考', '次回選考'],
+              '最終不採用': ['最終不採用', '最終選考', '最終面接不採用', '残念ながら'],
+              '内定': ['内定', 'オファー', '採用', '合格', 'offer'],
+              '面接日程調整': ['面接日程', '日程調整', '面接の日程', 'スケジュール調整', '面接設定'],
+              'スカウト': ['スカウト', 'スカウトメール', 'アプローチ', '候補者へのご連絡', 'ダイレクト'],
+              '一般': [],
+            };
+
+            const SYNONYMS = [
+              ['履歴書', '職務経歴書', 'レジュメ', 'resume', 'cv', '简历'],
+              ['面接', '面談', 'interview', '面试'],
+              ['企業', '会社', '法人', 'company', '公司', '企业'],
+              ['候補者', '応募者', 'candidate', '候选人'],
+              ['求人', '求人票', 'ジョブ', 'job', '職位', '岗位', '招聘'],
+              ['メール', 'email', 'mail', '邮件'],
+              ['スカウト', 'scout', 'ダイレクト', 'dm', '直接联系'],
+              ['年収', '給与', '給料', 'salary', '薪资', '报酬'],
+              ['経験', '実績', 'experience', '经验', '经历'],
+              ['スキル', '技術', '能力', 'skill', '技能'],
+              ['不採用', 'お見送り', 'reject', '不合格', '落选'],
+              ['内定', 'オファー', 'offer', '录用'],
+              ['日程', 'スケジュール', 'schedule', '安排', '日程调整'],
+            ];
+
+            const expandedKeywords = [...keywords];
+            for (const kw of keywords) {
+              for (const group of SYNONYMS) {
+                if (group.some(syn => syn === kw || kw.includes(syn))) {
+                  for (const syn of group) {
+                    if (!expandedKeywords.includes(syn)) expandedKeywords.push(syn);
+                  }
+                }
+              }
+            }
+
+            const activeScenes = Object.entries(SCENE_KEYWORDS)
+              .filter(([, kws]) => kws.some(kw => contextText.includes(kw)))
+              .map(([scene]) => scene);
+
+            function scoreAndPick(list, limit) {
+              const scored = list.map(mem => {
+                const memLower = mem.content.toLowerCase();
+                let score = expandedKeywords.filter(kw => memLower.includes(kw)).length;
+                const sceneMatch = activeScenes.some(s => mem.content.startsWith(`[${s}]`));
+                if (sceneMatch) score += 10;
+                const hitCount = mem.hit_count || 0;
+                score += Math.min(hitCount, 10);
+                return { ...mem, score };
+              });
+              scored.sort((a, b) => b.score - a.score || new Date(b.created_at) - new Date(a.created_at));
+              return scored.slice(0, limit);
+            }
+
+            const globals  = scoreAndPick(allMemories.filter(m => m.scope === 'global'), 8);
+            const projects = scoreAndPick(allMemories.filter(m => m.scope === 'project'), 8);
+            const selected = [...globals, ...projects];
+
+            for (const mem of selected) {
+              fetch(`${SUPABASE_URL}/rest/v1/memories?id=eq.${mem.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}`, 'Prefer': 'return=minimal' },
+                body: JSON.stringify({ hit_count: (mem.hit_count || 0) + 1 })
+              }).catch(() => {});
+            }
+
+            const positives = selected.filter(m => m.type === 'positive').map(m => `・${m.content}`).join('\n');
+            const negatives = selected.filter(m => m.type === 'negative').map(m => `・${m.content}`).join('\n');
+
+            if (positives || negatives) {
+              memoriesText = '\n\n---\n【Zoeの指示・好みルール（必ず守ること）】\n\n';
+              if (positives) memoriesText += `✅ 必ずこうしてほしい：\n${positives}\n\n`;
+              if (negatives) memoriesText += `❌ 絶対にやってはいけない：\n${negatives}`;
+              memoriesText += '\n---';
+            }
+          }
+        }
+      }
+    } catch(_e) { /* 記憶取得失敗は既存機能に影響させない */ }
+
     // ── コアシステムプロンプト（全チャット共通）──────────────────────────
     const CORE_SYSTEM = `今日の日付は${today}です。年数計算・在籍期間・経験年数は必ず今日の日付を基準に正確に計算してください。未来の日付と判断しないこと。
 
@@ -289,8 +393,8 @@ CONFIDENCE & UNCERTAINTY RULES (ABSOLUTE):
     const BASE_SYSTEM = CORE_SYSTEM;
 
     const finalSystem = systemPrompt
-      ? `${BASE_SYSTEM}\n\n---\n\n${systemPrompt}`
-      : BASE_SYSTEM;
+      ? `${BASE_SYSTEM}${memoriesText}\n\n---\n\n${systemPrompt}`
+      : `${BASE_SYSTEM}${memoriesText}`;
 
     const isResume = !!project_id;
     if (model === 'gpt-4o')           return await callOpenAI(finalSystem, trimmedMessages, imageData, isResume);
