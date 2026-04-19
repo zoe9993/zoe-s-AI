@@ -537,7 +537,7 @@ CONFIDENCE & UNCERTAINTY RULES (ABSOLUTE):
     const BASE_SYSTEM = project_id ? CORE_SYSTEM + RESUME_RULES : CORE_SYSTEM;
 
     // プロジェクトチャット：低温度で安定出力 + トークン増量で詳細出力
-    const temperature = project_id ? 0.4 : 0.5;
+    const temperature = 0.5;
     const maxTokens = project_id ? 8000 : 4000;
 
     const finalSystem = systemPrompt
