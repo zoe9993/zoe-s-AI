@@ -1060,6 +1060,7 @@ async function startApp() {
     `<button class="model-btn ${currentModel===m.id?'active':''}" data-model="${m.id}" onclick="selectModel('${m.id}')">${m.label}</button>`
   ).join('');
   await loadProjects();
+  await loadSyncedConvsFromCloud(); // クラウドの同期状態をローカルに反映
   document.getElementById('loadingOverlay').style.display = 'none';
   renderSidebar();
 }
@@ -1860,6 +1861,20 @@ async function saveEditMsg(i) {
 }
 
 /* ── クラウド同期 ── */
+
+// 起動時：Supabaseの同期済みリストをローカルに反映（他デバイス対応）
+async function loadSyncedConvsFromCloud() {
+  try {
+    const res = await apiFetch('/api/sync');
+    if (!res.ok) return;
+    const cloudList = await res.json();
+    if (!Array.isArray(cloudList) || cloudList.length === 0) return;
+    const local = getSyncedConvIds();
+    cloudList.forEach(item => local.add(item.conv_id));
+    saveSyncedConvIds(local);
+  } catch(e) {}
+}
+
 function getSyncedConvIds() {
   try { return new Set(JSON.parse(localStorage.getItem('synced_convs') || '[]')); }
   catch(e) { return new Set(); }
@@ -1881,11 +1896,14 @@ function getConvName(id) {
 }
 
 async function syncToCloud(convId, msgs) {
-  await apiFetch('/api/sync', {
+  const res = await apiFetch('/api/sync', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ conv_id: convId, name: getConvName(convId), messages: msgs })
   });
+  if (res.ok) {
+    localStorage.setItem(`chat_${convId}_ts`, Date.now().toString());
+  }
 }
 
 async function pullAndMerge(convId) {
@@ -1895,9 +1913,12 @@ async function pullAndMerge(convId) {
     const data = await res.json();
     if (!data?.messages) return;
     const localMsgs = JSON.parse(localStorage.getItem(`chat_${convId}`) || '[]');
-    // クラウドのほうが多い場合のみ上書き（他デバイスの新メッセージを取得）
-    if (data.messages.length > localMsgs.length) {
+    const cloudTime = data.updated_at ? new Date(data.updated_at).getTime() : 0;
+    const localTime = parseInt(localStorage.getItem(`chat_${convId}_ts`) || '0');
+    // クラウドが新しい、またはメッセージ数が多い場合に上書き
+    if (cloudTime > localTime || data.messages.length > localMsgs.length) {
       localStorage.setItem(`chat_${convId}`, JSON.stringify(data.messages));
+      localStorage.setItem(`chat_${convId}_ts`, cloudTime.toString());
       if (currentProjectId === convId) renderMessages();
     }
   } catch(e) {}
