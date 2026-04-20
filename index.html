@@ -1465,7 +1465,7 @@ function saveMessages(msgs) {
   }
   // クラウド同期がONの場合はSupabaseにも保存
   if (isConvSynced(currentProjectId)) {
-    syncToCloud(currentProjectId, msgs).catch(() => {});
+    syncToCloud(currentProjectId, msgs).catch(e => showToast('⚠ 同期エラー: ' + e.message));
   }
 }
 
@@ -1866,13 +1866,19 @@ async function saveEditMsg(i) {
 async function loadSyncedConvsFromCloud() {
   try {
     const res = await apiFetch('/api/sync');
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.warn('loadSyncedConvsFromCloud failed:', res.status);
+      return;
+    }
     const cloudList = await res.json();
     if (!Array.isArray(cloudList) || cloudList.length === 0) return;
     const local = getSyncedConvIds();
     cloudList.forEach(item => local.add(item.conv_id));
     saveSyncedConvIds(local);
-  } catch(e) {}
+    console.log('Synced conv IDs from cloud:', [...local]);
+  } catch(e) {
+    console.warn('loadSyncedConvsFromCloud error:', e);
+  }
 }
 
 function getSyncedConvIds() {
@@ -1901,27 +1907,42 @@ async function syncToCloud(convId, msgs) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ conv_id: convId, name: getConvName(convId), messages: msgs })
   });
-  if (res.ok) {
-    localStorage.setItem(`chat_${convId}_ts`, Date.now().toString());
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try { const j = await res.json(); detail = JSON.stringify(j.error || j); } catch(_) {}
+    throw new Error(detail);
   }
+  localStorage.setItem(`chat_${convId}_ts`, Date.now().toString());
 }
 
 async function pullAndMerge(convId) {
   try {
     const res = await apiFetch(`/api/sync?conv_id=${encodeURIComponent(convId)}`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.warn('pullAndMerge failed:', res.status);
+      return;
+    }
     const data = await res.json();
-    if (!data?.messages) return;
+    if (!data?.messages) {
+      console.warn('pullAndMerge: no messages in cloud data', data);
+      return;
+    }
     const localMsgs = JSON.parse(localStorage.getItem(`chat_${convId}`) || '[]');
     const cloudTime = data.updated_at ? new Date(data.updated_at).getTime() : 0;
     const localTime = parseInt(localStorage.getItem(`chat_${convId}_ts`) || '0');
+    console.log(`pullAndMerge: cloud=${cloudTime} local=${localTime} cloudMsgs=${data.messages.length} localMsgs=${localMsgs.length}`);
     // クラウドが新しい、またはメッセージ数が多い場合に上書き
     if (cloudTime > localTime || data.messages.length > localMsgs.length) {
       localStorage.setItem(`chat_${convId}`, JSON.stringify(data.messages));
       localStorage.setItem(`chat_${convId}_ts`, cloudTime.toString());
-      if (currentProjectId === convId) renderMessages();
+      if (currentProjectId === convId) {
+        renderMessages();
+        showToast('☁️ 同期しました');
+      }
     }
-  } catch(e) {}
+  } catch(e) {
+    console.warn('pullAndMerge error:', e);
+  }
 }
 
 function startSyncPoll(convId) {
@@ -1952,12 +1973,12 @@ async function toggleCloudSync(convId) {
     const msgs = JSON.parse(localStorage.getItem(`chat_${convId}`) || '[]');
     try {
       await syncToCloud(convId, msgs);
-      showToast('☁️ クラウド同期をONにしました');
+      showToast(`☁️ 同期ON（${msgs.length}件保存済み）`);
       if (currentProjectId === convId) startSyncPoll(convId);
     } catch(e) {
       synced.delete(convId);
       saveSyncedConvIds(synced);
-      showToast('⚠ 同期に失敗しました: ' + e.message);
+      showToast('⚠ 同期失敗: ' + e.message);
     }
   }
   renderSidebar();
