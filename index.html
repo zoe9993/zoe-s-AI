@@ -1790,13 +1790,11 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
       }
     }
 
-    // 完了 → 保存（空レスポンスは保存しない）
+    // 完了 → 保存
     document.getElementById('streamingMsg')?.remove();
-    if (fullContent.trim()) {
-      const allMsgs = getMessages();
-      allMsgs.push({ role: 'ai', content: fullContent });
-      saveMessages(allMsgs);
-    }
+    const allMsgs = getMessages();
+    allMsgs.push({ role: 'ai', content: fullContent });
+    saveMessages(allMsgs);
 
   } catch(e) {
     document.getElementById('thinkingMsg')?.remove();
