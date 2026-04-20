@@ -813,6 +813,30 @@ body {
 }
 .login-btn:hover { background: var(--accent2); }
 .login-btn:disabled { opacity: 0.6; cursor: default; }
+
+/* ── CLOUD SYNC ── */
+.cloud-btn {
+  opacity: 0.3;
+  font-size: 13px;
+  padding: 2px 4px;
+  transition: opacity 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.cloud-btn:hover { opacity: 0.7; }
+.cloud-btn.synced { opacity: 1; color: var(--accent); }
+@keyframes syncPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.sync-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  background: var(--accent);
+  border-radius: 50%;
+  margin-left: 3px;
+  vertical-align: middle;
+  animation: syncPulse 1.8s ease-in-out infinite;
+}
 </style>
 </head>
 <body>
@@ -940,6 +964,7 @@ function apiFetch(url, options = {}) {
 let projects = [], currentProjectId = null, editingProjectId = null;
 let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null;
 let currentModel = 'claude-sonnet-4';
+let _syncPollTimer = null;
 
 // ── プライバシーモード ──────────────────────────────────────────────────
 let privacyMode = false;
@@ -1090,10 +1115,11 @@ function renderSidebar() {
       <div class="project-info">
         <div class="project-emoji">💬</div>
         <div class="project-text">
-          <div class="project-name">${escapeHtml(conv.name)}</div>
+          <div class="project-name">${escapeHtml(conv.name)}${isConvSynced(conv.id)?'<span class="sync-dot"></span>':''}</div>
         </div>
       </div>
       <div class="project-actions">
+        <button class="icon-btn cloud-btn ${isConvSynced(conv.id)?'synced':''}" onclick="event.stopPropagation();toggleCloudSync('${conv.id}')" title="クラウド同期">☁️</button>
         <button class="icon-btn danger" onclick="event.stopPropagation();deleteGeneralConversation('${conv.id}')">🗑</button>
       </div>
     </div>`).join('')}`;
@@ -1105,11 +1131,12 @@ function renderSidebar() {
         <div class="project-info">
           <div class="project-emoji">${p.emoji||'💬'}</div>
           <div class="project-text">
-            <div class="project-name">${escapeHtml(p.name)}</div>
+            <div class="project-name">${escapeHtml(p.name)}${isConvSynced(p.id)?'<span class="sync-dot"></span>':''}</div>
             ${p.description?`<div class="project-desc">${escapeHtml(p.description)}</div>`:''}
           </div>
         </div>
         <div class="project-actions">
+          <button class="icon-btn cloud-btn ${isConvSynced(p.id)?'synced':''}" onclick="event.stopPropagation();toggleCloudSync('${p.id}')" title="クラウド同期">☁️</button>
           <button class="icon-btn" onclick="event.stopPropagation();openEditModal('${p.id}')">✏️</button>
           <button class="icon-btn danger" onclick="event.stopPropagation();confirmDelete('${p.id}')">🗑</button>
         </div>
@@ -1118,16 +1145,22 @@ function renderSidebar() {
   list.innerHTML = html;
 }
 
-function selectProject(id) {
+async function selectProject(id) {
   if (currentProjectId === id) { closeSidebar(); return; }
   currentProjectId = id; pendingPdf = null; pendingImage = null;
   privacyMap.clear(); privacyCounter = 0;
+  stopSyncPoll();
   // サイドバーのactiveクラスだけ即時更新（重い全再描画なし）
   document.querySelectorAll('.project-item').forEach(el => {
     const oc = el.getAttribute('onclick') || '';
     el.classList.toggle('active', oc.includes(`'${id}'`));
   });
   closeSidebar();
+  // クラウド同期ONの場合、最新データをプル
+  if (isConvSynced(id)) {
+    await pullAndMerge(id);
+    startSyncPoll(id);
+  }
   // サイドバー閉じるアニメーション後にメイン描画（0.25s transition後）
   setTimeout(() => { renderChatArea(); }, 260);
 }
@@ -1137,7 +1170,14 @@ async function confirmDelete(id) {
   await deleteProjectAPI(id);
   projects = projects.filter(p => p.id !== id);
   localStorage.removeItem(`chat_${id}`);
-  if (currentProjectId === id) { currentProjectId = null; renderNoProject(); }
+  // クラウド同期ONの場合はSupabaseからも削除
+  if (isConvSynced(id)) {
+    const synced = getSyncedConvIds();
+    synced.delete(id);
+    saveSyncedConvIds(synced);
+    apiFetch(`/api/sync?conv_id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+  }
+  if (currentProjectId === id) { stopSyncPoll(); currentProjectId = null; renderNoProject(); }
   renderSidebar();
 }
 
@@ -1186,13 +1226,20 @@ function createGeneralConversation() {
   renderSidebar(); renderChatArea(); closeSidebar();
 }
 
-function deleteGeneralConversation(id) {
+async function deleteGeneralConversation(id) {
   if (!confirm('この会話を削除しますか？')) return;
   let convs = getGeneralConversations().filter(c => c.id !== id);
   if (convs.length === 0) convs = [{ id: GENERAL_ID, name: '会話1' }];
   saveGeneralConversations(convs);
   localStorage.removeItem(`chat_${id}`);
-  if (currentProjectId === id) { currentProjectId = convs[0].id; renderChatArea(); }
+  // クラウド同期ONの場合はSupabaseからも削除
+  if (isConvSynced(id)) {
+    const synced = getSyncedConvIds();
+    synced.delete(id);
+    saveSyncedConvIds(synced);
+    apiFetch(`/api/sync?conv_id=${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => {});
+  }
+  if (currentProjectId === id) { stopSyncPoll(); currentProjectId = convs[0].id; renderChatArea(); }
   renderSidebar();
 }
 
@@ -1414,6 +1461,10 @@ function saveMessages(msgs) {
     try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch(_) {
       showToast('⚠ ストレージ容量が不足しています。古い会話をクリアしてください。');
     }
+  }
+  // クラウド同期がONの場合はSupabaseにも保存
+  if (isConvSynced(currentProjectId)) {
+    syncToCloud(currentProjectId, msgs).catch(() => {});
   }
 }
 
@@ -1806,6 +1857,89 @@ async function saveEditMsg(i) {
   msgs[i] = { ...msgs[i], content: fullContent };
   saveMessages(msgs);
   renderMessages();
+}
+
+/* ── クラウド同期 ── */
+function getSyncedConvIds() {
+  try { return new Set(JSON.parse(localStorage.getItem('synced_convs') || '[]')); }
+  catch(e) { return new Set(); }
+}
+function saveSyncedConvIds(set) {
+  localStorage.setItem('synced_convs', JSON.stringify([...set]));
+}
+function isConvSynced(id) {
+  return id ? getSyncedConvIds().has(id) : false;
+}
+
+function getConvName(id) {
+  if (isGeneralChat(id)) {
+    const c = getGeneralConversations().find(x => x.id === id);
+    return c?.name || '汎用チャット';
+  }
+  const p = projects.find(x => x.id === id);
+  return p?.name || 'プロジェクト';
+}
+
+async function syncToCloud(convId, msgs) {
+  await apiFetch('/api/sync', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conv_id: convId, name: getConvName(convId), messages: msgs })
+  });
+}
+
+async function pullAndMerge(convId) {
+  try {
+    const res = await apiFetch(`/api/sync?conv_id=${encodeURIComponent(convId)}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data?.messages) return;
+    const localMsgs = JSON.parse(localStorage.getItem(`chat_${convId}`) || '[]');
+    // クラウドのほうが多い場合のみ上書き（他デバイスの新メッセージを取得）
+    if (data.messages.length > localMsgs.length) {
+      localStorage.setItem(`chat_${convId}`, JSON.stringify(data.messages));
+      if (currentProjectId === convId) renderMessages();
+    }
+  } catch(e) {}
+}
+
+function startSyncPoll(convId) {
+  stopSyncPoll();
+  if (!isConvSynced(convId)) return;
+  _syncPollTimer = setInterval(async () => {
+    if (currentProjectId !== convId || !isConvSynced(convId)) { stopSyncPoll(); return; }
+    await pullAndMerge(convId);
+  }, 15000); // 15秒ごとにポーリング
+}
+
+function stopSyncPoll() {
+  if (_syncPollTimer) { clearInterval(_syncPollTimer); _syncPollTimer = null; }
+}
+
+async function toggleCloudSync(convId) {
+  const synced = getSyncedConvIds();
+  if (synced.has(convId)) {
+    // OFFにする
+    synced.delete(convId);
+    saveSyncedConvIds(synced);
+    if (currentProjectId === convId) stopSyncPoll();
+    showToast('☁️ クラウド同期をOFFにしました');
+  } else {
+    // ONにする → 現在のメッセージをプッシュ
+    synced.add(convId);
+    saveSyncedConvIds(synced);
+    const msgs = JSON.parse(localStorage.getItem(`chat_${convId}`) || '[]');
+    try {
+      await syncToCloud(convId, msgs);
+      showToast('☁️ クラウド同期をONにしました');
+      if (currentProjectId === convId) startSyncPoll(convId);
+    } catch(e) {
+      synced.delete(convId);
+      saveSyncedConvIds(synced);
+      showToast('⚠ 同期に失敗しました: ' + e.message);
+    }
+  }
+  renderSidebar();
 }
 
 /* ── Toast ── */
