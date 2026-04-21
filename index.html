@@ -1338,36 +1338,22 @@ async function handlePdfSelect(event) {
   }
 
   // ── PDF ──
-  if (file.size > 32 * 1024 * 1024) { alert('PDFは32MB以下にしてください'); return; }
+  // Vercel Edge Runtime の上限 4MB に合わせ、base64膨張(×1.33)＋他データ分を考慮して 3MB に制限
+  if (file.size > 3 * 1024 * 1024) { alert('PDFは3MB以下にしてください（サーバー制限）'); return; }
 
   pendingPdf = { name: file.name, base64: null, mimeType: 'application/pdf', loading: true };
   renderPdfPreview('読み込み中...');
 
   try {
-    if (file.size <= 32 * 1024 * 1024) {
-      // 32MB以下 → base64でClaudeがネイティブに読む
-      const arrayBuffer = await file.arrayBuffer();
-      const uint8 = new Uint8Array(arrayBuffer);
-      let binary = '';
-      const chunkSize = 8192;
-      for (let i = 0; i < uint8.length; i += chunkSize) {
-        binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
-      }
-      const base64 = btoa(binary);
-      pendingPdf = { name: file.name, base64, mimeType: 'application/pdf', loading: false };
-    } else {
-      // 5MB超え → pdf.jsでテキスト抽出（フォールバック）
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let fullText = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        const pageText = content.items.map(item => item.str).join(' ');
-        fullText += `\n--- ${i}ページ ---\n${pageText}`;
-      }
-      pendingPdf = { name: file.name, text: fullText.trim(), mimeType: 'text', loading: false };
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8.length; i += chunkSize) {
+      binary += String.fromCharCode(...uint8.subarray(i, i + chunkSize));
     }
+    const base64 = btoa(binary);
+    pendingPdf = { name: file.name, base64, mimeType: 'application/pdf', loading: false };
     renderPdfPreview();
   } catch(e) {
     alert('PDFの読み込みに失敗しました。');
