@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js"></script>
 <script>
   if (typeof pdfjsLib !== 'undefined') {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -898,13 +899,13 @@ body {
       <div class="model-selector" id="modelSelector"></div>
 
       <div class="input-wrap">
-        <button class="pdf-btn" id="pdfBtn" onclick="triggerPdfUpload()" title="PDFをアップロード">📎</button>
+        <button class="pdf-btn" id="pdfBtn" onclick="triggerPdfUpload()" title="PDF・Wordをアップロード">📎</button>
         <button class="pdf-btn" id="imgBtn" onclick="triggerImageUpload()" title="画像をアップロード">🖼️</button>
 
         <textarea class="chat-input" id="chatInput" placeholder="メッセージを入力..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)" onpaste="handlePaste(event)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
       </div>
-      <div class="input-hint">Enter で送信 · Shift+Enter で改行 · 📎 PDF · 🖼️ 画像 · 🔗 URL取得</div>
+      <div class="input-hint">Enter で送信 · Shift+Enter で改行 · 📎 PDF/Word · 🖼️ 画像 · 🔗 URL取得</div>
     </div>
   </div>
 </div>
@@ -936,7 +937,7 @@ body {
   </div>
 </div>
 
-<input type="file" id="pdfFileInput" accept=".pdf" onchange="handlePdfSelect(event)">
+<input type="file" id="pdfFileInput" accept=".pdf,.docx" onchange="handlePdfSelect(event)">
 <input type="file" id="imageFileInput" accept="image/jpeg,image/png,image/gif,image/webp" onchange="handleImageSelect(event)">
 
 
@@ -1306,12 +1307,37 @@ async function saveProject() {
   }
 }
 
-// ── PDF ──────────────────────────────────────────────────────────────
+// ── PDF / Word ────────────────────────────────────────────────────────
 function triggerPdfUpload() { document.getElementById('pdfFileInput').click(); }
 
 async function handlePdfSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
+
+  const isDocx = file.name.toLowerCase().endsWith('.docx');
+
+  if (isDocx) {
+    // ── Word (.docx) → mammoth でテキスト抽出 ──
+    if (file.size > 20 * 1024 * 1024) { alert('Wordファイルは20MB以下にしてください'); return; }
+    pendingPdf = { name: file.name, base64: null, mimeType: 'application/pdf', loading: true };
+    renderPdfPreview('読み込み中...');
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const text = result.value;
+      if (!text.trim()) throw new Error('テキストが見つかりませんでした');
+      pendingPdf = { name: file.name, text: text.trim(), mimeType: 'text', loading: false };
+      renderPdfPreview();
+    } catch(e) {
+      alert('Wordファイルの読み込みに失敗しました。');
+      pendingPdf = null;
+      renderPdfPreview();
+    }
+    event.target.value = '';
+    return;
+  }
+
+  // ── PDF ──
   if (file.size > 20 * 1024 * 1024) { alert('PDFは20MB以下にしてください'); return; }
 
   pendingPdf = { name: file.name, base64: null, mimeType: 'application/pdf', loading: true };
@@ -1665,7 +1691,7 @@ async function sendMessage() {
   if ((!text && !pendingPdf && !pendingImage) || isLoading) return;
 
   if (pendingPdf && pendingPdf.loading) {
-    alert('PDFを読み込み中です。少し待ってから送信してください。');
+    alert('ファイルを読み込み中です。少し待ってから送信してください。');
     return;
   }
   if (pendingImage && pendingImage.loading) {
@@ -1721,10 +1747,10 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
         content = content.trim();
         if (pdfData) {
           if (pdfData.mimeType === 'text') {
-            // 5MB超え：テキスト抽出方式
-            content = `以下は「${pdfData.name}」から抽出したテキストです：\n\n${pdfData.text}\n\n---\n${content || 'このPDFの内容を把握してください。'}`;
+            // テキスト抽出方式（PDF 5MB超え・Wordファイル共通）
+            content = `以下は「${pdfData.name}」から抽出したテキストです：\n\n${pdfData.text}\n\n---\n${content || 'このファイルの内容を把握してください。'}`;
           } else {
-            // 5MB以下：base64方式（PDFはimageDataで送信）
+            // 5MB以下PDF：base64方式（PDFはimageDataで送信）
             content = content || 'このPDFの内容を把握してください。';
           }
         }
