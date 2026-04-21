@@ -1338,14 +1338,14 @@ async function handlePdfSelect(event) {
   }
 
   // ── PDF ──
-  if (file.size > 20 * 1024 * 1024) { alert('PDFは20MB以下にしてください'); return; }
+  if (file.size > 32 * 1024 * 1024) { alert('PDFは32MB以下にしてください'); return; }
 
   pendingPdf = { name: file.name, base64: null, mimeType: 'application/pdf', loading: true };
   renderPdfPreview('読み込み中...');
 
   try {
-    if (file.size <= 5 * 1024 * 1024) {
-      // 5MB以下 → base64でClaudeがネイティブに読む
+    if (file.size <= 32 * 1024 * 1024) {
+      // 32MB以下 → base64でClaudeがネイティブに読む
       const arrayBuffer = await file.arrayBuffer();
       const uint8 = new Uint8Array(arrayBuffer);
       let binary = '';
