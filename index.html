@@ -1323,10 +1323,11 @@ async function handlePdfSelect(event) {
     renderPdfPreview('読み込み中...');
     try {
       const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      const text = result.value;
-      if (!text.trim()) throw new Error('テキストが見つかりませんでした');
-      pendingPdf = { name: file.name, text: text.trim(), mimeType: 'text', loading: false };
+      const result = await mammoth.convertToHtml({ arrayBuffer });
+      const html = result.value;
+      if (!html.trim()) throw new Error('テキストが見つかりませんでした');
+      // HTMLタグを保持したまま送信（テーブル構造をAIが正確に読めるように）
+      pendingPdf = { name: file.name, text: html.trim(), mimeType: 'text', loading: false };
       renderPdfPreview();
     } catch(e) {
       alert('Wordファイルの読み込みに失敗しました。');
@@ -1734,7 +1735,11 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
         if (pdfData) {
           if (pdfData.mimeType === 'text') {
             // テキスト抽出方式（PDF 5MB超え・Wordファイル共通）
-            content = `以下は「${pdfData.name}」から抽出したテキストです：\n\n${pdfData.text}\n\n---\n${content || 'このファイルの内容を把握してください。'}`;
+            const isHtml = pdfData.text.trimStart().startsWith('<');
+            const label = isHtml
+              ? `以下は「${pdfData.name}」の内容です（テーブル構造を含むHTML形式）：`
+              : `以下は「${pdfData.name}」から抽出したテキストです：`;
+            content = `${label}\n\n${pdfData.text}\n\n---\n${content || 'このファイルの内容を把握してください。'}`;
           } else {
             // 5MB以下PDF：base64方式（PDFはimageDataで送信）
             content = content || 'このPDFの内容を把握してください。';
