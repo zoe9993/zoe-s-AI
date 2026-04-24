@@ -846,6 +846,54 @@ body {
   animation: syncPulse 1.8s ease-in-out infinite;
   box-shadow: 0 0 4px var(--accent);
 }
+
+/* ── FOLDERS ── */
+.projects-section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 6px 4px 8px; margin-top: 8px;
+}
+.projects-section-label {
+  font-size: 9px; font-weight: 700; color: var(--text3);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  font-family: 'DM Mono', monospace;
+}
+.folder-group { margin-bottom: 1px; }
+.folder-header {
+  display: flex; align-items: center; gap: 4px;
+  padding: 5px 6px 5px 7px; border-radius: 6px;
+  cursor: pointer; user-select: none; transition: background 0.12s;
+}
+.folder-header:hover { background: var(--surface2); }
+.folder-header:hover .folder-actions { opacity: 1; }
+.folder-chevron {
+  font-size: 8px; color: var(--text3); flex-shrink: 0;
+  transition: transform 0.18s; display: inline-block; width: 10px;
+}
+.folder-chevron.open { transform: rotate(90deg); }
+.folder-name-text {
+  flex: 1; min-width: 0;
+  font-size: 10px; font-weight: 700; color: var(--text3);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.folder-count {
+  font-size: 9px; color: var(--text3); font-family: 'DM Mono', monospace;
+  flex-shrink: 0; margin-right: 2px;
+}
+.folder-actions {
+  display: flex; gap: 1px; opacity: 0;
+  transition: opacity 0.12s; flex-shrink: 0;
+}
+.folder-body.collapsed { display: none; }
+.folder-projects { padding-left: 8px; }
+.uncategorized-label { margin-top: 6px; }
+select.form-input {
+  appearance: none; -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+  padding-right: 28px; cursor: pointer;
+}
 </style>
 </head>
 <body>
@@ -934,6 +982,12 @@ body {
       <input type="text" class="form-input" id="projectDesc" placeholder="例：候補者・企業へのメール作成" maxlength="50">
     </div>
     <div class="form-group">
+      <label class="form-label">フォルダ</label>
+      <select class="form-input" id="projectFolder">
+        <option value="">未分類</option>
+      </select>
+    </div>
+    <div class="form-group">
       <label class="form-label">システムPrompt *</label>
       <textarea class="form-textarea" id="projectPrompt" placeholder="AIへの指示を書いてください。"></textarea>
       <div class="form-hint">具体的に書くほど精度が上がります。</div>
@@ -970,7 +1024,7 @@ function apiFetch(url, options = {}) {
   return fetch(url, { ...options, headers });
 }
 
-let projects = [], currentProjectId = null, editingProjectId = null;
+let projects = [], folders = [], currentProjectId = null, editingProjectId = null;
 let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null;
 let currentModel = 'claude-sonnet-4';
 let _syncPollTimer = null;
@@ -1069,6 +1123,8 @@ async function startApp() {
     `<button class="model-btn ${currentModel===m.id?'active':''}" data-model="${m.id}" onclick="selectModel('${m.id}')">${m.label}</button>`
   ).join('');
   await loadProjects();
+  await loadFolders();
+  await initDefaultFolders();
   await loadSyncedConvsFromCloud(); // クラウドの同期状態をローカルに反映
   document.getElementById('loadingOverlay').style.display = 'none';
   renderSidebar();
@@ -1112,9 +1168,122 @@ async function deleteProjectAPI(id) {
   await apiFetch(`/api/projects?id=${id}`, { method: 'DELETE' });
 }
 
+// ── フォルダ API ────────────────────────────────────────────────────────
+async function loadFolders() {
+  try {
+    const res = await apiFetch('/api/folders');
+    folders = res.ok ? await res.json() : [];
+  } catch(e) { folders = []; }
+}
+
+async function initDefaultFolders() {
+  if (folders.length > 0) return;
+  const defaults = ['選考中', '面接調整中', '内定', '見送り'];
+  for (let i = 0; i < defaults.length; i++) {
+    try {
+      const res = await apiFetch('/api/folders', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: defaults[i], position: i })
+      });
+      if (res.ok) { const f = await res.json(); if (f?.id) folders.push(f); }
+    } catch(e) {}
+  }
+}
+
+async function apiFolderCreate(name, position) {
+  const res = await apiFetch('/api/folders', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, position })
+  });
+  return res.ok ? await res.json() : null;
+}
+
+async function apiFolderRename(id, name) {
+  await apiFetch(`/api/folders?id=${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name })
+  });
+}
+
+async function apiFolderDelete(id) {
+  await apiFetch(`/api/folders?id=${id}`, { method: 'DELETE' });
+}
+
+// ── フォルダ操作 ──────────────────────────────────────────────────────
+function isFolderCollapsed(id) {
+  return localStorage.getItem(`folder_collapsed_${id}`) === '1';
+}
+
+function toggleFolder(id) {
+  if (isFolderCollapsed(id)) {
+    localStorage.removeItem(`folder_collapsed_${id}`);
+  } else {
+    localStorage.setItem(`folder_collapsed_${id}`, '1');
+  }
+  const body = document.getElementById(`folder-body-${id}`);
+  const chevron = document.getElementById(`folder-chevron-${id}`);
+  const collapsed = isFolderCollapsed(id);
+  if (body) body.classList.toggle('collapsed', collapsed);
+  if (chevron) chevron.classList.toggle('open', !collapsed);
+}
+
+async function createFolder() {
+  const name = prompt('フォルダ名を入力してください');
+  if (!name?.trim()) return;
+  const f = await apiFolderCreate(name.trim(), folders.length);
+  if (f?.id) { folders.push(f); renderSidebar(); }
+}
+
+async function renameFolder(id) {
+  const folder = folders.find(f => f.id === id);
+  if (!folder) return;
+  const name = prompt('新しいフォルダ名', folder.name);
+  if (!name?.trim() || name.trim() === folder.name) return;
+  await apiFolderRename(id, name.trim());
+  folder.name = name.trim();
+  renderSidebar();
+}
+
+async function deleteFolder(id) {
+  const folder = folders.find(f => f.id === id);
+  if (!confirm(`「${folder?.name || 'フォルダ'}」を削除しますか？\n中のプロジェクトは未分類に移動します。`)) return;
+  await apiFolderDelete(id);
+  projects.forEach(p => { if (p.folder_id === id) p.folder_id = null; });
+  folders = folders.filter(f => f.id !== id);
+  renderSidebar();
+}
+
+function populateFolderSelect(selectedFolderId) {
+  const sel = document.getElementById('projectFolder');
+  if (!sel) return;
+  sel.innerHTML = `<option value="">未分類</option>` +
+    folders.map(f =>
+      `<option value="${f.id}"${f.id === selectedFolderId ? ' selected' : ''}>${escapeHtml(f.name)}</option>`
+    ).join('');
+}
+
 function renderSidebar() {
   const list = document.getElementById('projectsList');
   const generalConvs = getGeneralConversations();
+
+  function projectItemHtml(p) {
+    return `
+      <div class="project-item ${currentProjectId===p.id?'active':''}" onclick="selectProject('${p.id}')">
+        <div class="project-info">
+          <div class="project-emoji">${p.emoji||'💬'}</div>
+          <div class="project-text">
+            <div class="project-name">${escapeHtml(p.name)}${isConvSynced(p.id)?'<span class="sync-dot"></span>':''}</div>
+            ${p.description?`<div class="project-desc">${escapeHtml(p.description)}</div>`:''}
+          </div>
+        </div>
+        <div class="project-actions">
+          <button class="icon-btn cloud-btn ${isConvSynced(p.id)?'synced':''}" onclick="event.stopPropagation();toggleCloudSync('${p.id}')" title="クラウド同期">☁️</button>
+          <button class="icon-btn" onclick="event.stopPropagation();openEditModal('${p.id}')">✏️</button>
+          <button class="icon-btn danger" onclick="event.stopPropagation();confirmDelete('${p.id}')">🗑</button>
+        </div>
+      </div>`;
+  }
+
   let html = `
     <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;padding-right:6px">
       <span>General</span>
@@ -1134,24 +1303,48 @@ function renderSidebar() {
       </div>
     </div>`).join('')}`;
 
-  if (projects.length > 0) {
-    html += `<div class="section-label" style="margin-top:8px">Projects</div>`;
-    html += projects.map(p => `
-      <div class="project-item ${currentProjectId===p.id?'active':''}" onclick="selectProject('${p.id}')">
-        <div class="project-info">
-          <div class="project-emoji">${p.emoji||'💬'}</div>
-          <div class="project-text">
-            <div class="project-name">${escapeHtml(p.name)}${isConvSynced(p.id)?'<span class="sync-dot"></span>':''}</div>
-            ${p.description?`<div class="project-desc">${escapeHtml(p.description)}</div>`:''}
+  // Projects section header with "+ new folder" button
+  html += `
+    <div class="projects-section-header">
+      <span class="projects-section-label">Projects</span>
+      <button class="icon-btn" onclick="createFolder()" title="新しいフォルダ" style="font-size:12px">📁＋</button>
+    </div>`;
+
+  // Render each folder
+  folders.forEach(folder => {
+    const folderProjects = projects.filter(p => p.folder_id === folder.id);
+    const collapsed = isFolderCollapsed(folder.id);
+    html += `
+      <div class="folder-group">
+        <div class="folder-header" onclick="toggleFolder('${folder.id}')">
+          <span class="folder-chevron ${collapsed ? '' : 'open'}" id="folder-chevron-${folder.id}">▶</span>
+          <span class="folder-name-text">${escapeHtml(folder.name)}</span>
+          <span class="folder-count">${folderProjects.length}</span>
+          <div class="folder-actions" onclick="event.stopPropagation()">
+            <button class="icon-btn" onclick="renameFolder('${folder.id}')" title="名前変更">✏️</button>
+            <button class="icon-btn danger" onclick="deleteFolder('${folder.id}')" title="削除">🗑</button>
           </div>
         </div>
-        <div class="project-actions">
-          <button class="icon-btn cloud-btn ${isConvSynced(p.id)?'synced':''}" onclick="event.stopPropagation();toggleCloudSync('${p.id}')" title="クラウド同期">☁️</button>
-          <button class="icon-btn" onclick="event.stopPropagation();openEditModal('${p.id}')">✏️</button>
-          <button class="icon-btn danger" onclick="event.stopPropagation();confirmDelete('${p.id}')">🗑</button>
+        <div class="folder-body ${collapsed ? 'collapsed' : ''}" id="folder-body-${folder.id}">
+          <div class="folder-projects">
+            ${folderProjects.length > 0
+              ? folderProjects.map(projectItemHtml).join('')
+              : `<div style="padding:4px 8px 4px 16px;font-size:10px;color:var(--text3)">— 空 —</div>`}
+          </div>
         </div>
-      </div>`).join('');
+      </div>`;
+  });
+
+  // Uncategorized projects (no folder_id or folder no longer exists)
+  const knownFolderIds = new Set(folders.map(f => f.id));
+  const uncategorized = projects.filter(p => !p.folder_id || !knownFolderIds.has(p.folder_id));
+  if (uncategorized.length > 0) {
+    if (folders.length > 0) {
+      html += `<div class="section-label uncategorized-label">未分類</div>`;
+    }
+    html += uncategorized.map(projectItemHtml).join('');
   }
+
   list.innerHTML = html;
 }
 
@@ -1270,6 +1463,7 @@ function openNewProjectModal() {
   document.getElementById('projectDesc').value = '';
   document.getElementById('projectPrompt').value = '';
   initEmojiPicker();
+  populateFolderSelect(null);
   document.getElementById('modalOverlay').style.display = 'flex';
   setTimeout(() => document.getElementById('projectName').focus(), 100);
 }
@@ -1284,6 +1478,7 @@ function openEditModal(id) {
   document.getElementById('projectDesc').value = p.description || '';
   document.getElementById('projectPrompt').value = p.prompt;
   initEmojiPicker();
+  populateFolderSelect(p.folder_id || null);
   document.getElementById('modalOverlay').style.display = 'flex';
 }
 
@@ -1294,6 +1489,7 @@ async function saveProject() {
   const name = document.getElementById('projectName').value.trim();
   const description = document.getElementById('projectDesc').value.trim();
   const prompt = document.getElementById('projectPrompt').value.trim();
+  const folder_id = document.getElementById('projectFolder')?.value || null;
   if (!name) { alert('プロジェクト名を入力してください'); return; }
   if (!prompt) { alert('Promptを入力してください'); return; }
 
@@ -1301,11 +1497,11 @@ async function saveProject() {
   saveBtn.textContent = '保存中...'; saveBtn.disabled = true;
   try {
     if (editingProjectId) {
-      await updateProject(editingProjectId, { name, description, prompt, emoji: selectedEmoji });
+      await updateProject(editingProjectId, { name, description, prompt, emoji: selectedEmoji, folder_id: folder_id || null });
       const idx = projects.findIndex(p => p.id === editingProjectId);
-      if (idx !== -1) projects[idx] = { ...projects[idx], name, description, prompt, emoji: selectedEmoji };
+      if (idx !== -1) projects[idx] = { ...projects[idx], name, description, prompt, emoji: selectedEmoji, folder_id: folder_id || null };
     } else {
-      const newP = await createProject({ name, description, prompt, emoji: selectedEmoji });
+      const newP = await createProject({ name, description, prompt, emoji: selectedEmoji, folder_id: folder_id || null });
       if (newP) { projects.push(newP); currentProjectId = newP.id; }
     }
     renderSidebar(); renderChatArea(); hideModal();
