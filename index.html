@@ -818,25 +818,32 @@ body {
 /* ── CLOUD SYNC ── */
 .cloud-btn {
   opacity: 0.3;
-  font-size: 13px;
-  padding: 2px 4px;
-  transition: opacity 0.15s, color 0.15s;
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
   flex-shrink: 0;
 }
 .cloud-btn:hover { opacity: 0.7; }
-.cloud-btn.synced { opacity: 1; color: var(--accent); }
+.cloud-btn.synced {
+  opacity: 1;
+  background: var(--accent);
+  color: #fff;
+  font-weight: bold;
+}
 @keyframes syncPulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.5; }
 }
 .sync-dot {
   display: inline-block;
-  width: 5px; height: 5px;
+  width: 7px; height: 7px;
   background: var(--accent);
   border-radius: 50%;
-  margin-left: 3px;
+  margin-left: 5px;
   vertical-align: middle;
   animation: syncPulse 1.8s ease-in-out infinite;
+  box-shadow: 0 0 4px var(--accent);
 }
 </style>
 </head>
@@ -1892,9 +1899,12 @@ async function loadSyncedConvsFromCloud() {
     const cloudList = await res.json();
     if (!Array.isArray(cloudList) || cloudList.length === 0) return;
     const local = getSyncedConvIds();
+    const before = local.size;
     cloudList.forEach(item => local.add(item.conv_id));
+    const added = local.size - before;
     saveSyncedConvIds(local);
     console.log('Synced conv IDs from cloud:', [...local]);
+    if (added > 0) showToast(`☁️ ${added}件の会話の同期状態をクラウドから復元しました`);
   } catch(e) {
     console.warn('loadSyncedConvsFromCloud error:', e);
   }
