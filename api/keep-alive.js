@@ -1,6 +1,17 @@
 export const config = { runtime: 'edge' };
 
 export default async function handler(req) {
+  // Vercel cron は Authorization: Bearer <CRON_SECRET> を付けて呼ぶ
+  const cronSecret = process.env.CRON_SECRET;
+  if (cronSecret) {
+    const authHeader = req.headers.get('authorization') || '';
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY;
 
