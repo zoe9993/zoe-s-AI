@@ -886,6 +886,23 @@ body {
   box-shadow: 0 0 4px var(--accent);
 }
 
+/* ── PWA / SAFE AREA ── */
+/* Notch & home-indicator padding — only on mobile, zero-cost on desktop */
+@media (max-width: 768px) {
+  .input-area {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+/* When running as installed PWA (standalone), add status-bar clearance */
+@media (display-mode: standalone) {
+  .topbar {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+  .sidebar {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 </style>
 </head>
 <body>
@@ -2053,23 +2070,6 @@ async function toggleCloudSync(convId) {
     }
   }
   renderSidebar();
-}
-
-/* ── PWA / SAFE AREA ── */
-/* Notch & home-indicator padding — only on mobile, zero-cost on desktop */
-@media (max-width: 768px) {
-  .input-area {
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
-  }
-}
-/* When running as installed PWA (standalone), add status-bar clearance */
-@media (display-mode: standalone) {
-  .topbar {
-    padding-top: max(10px, env(safe-area-inset-top));
-  }
-  .sidebar {
-    padding-top: env(safe-area-inset-top);
-  }
 }
 
 /* ── Toast ── */
