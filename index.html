@@ -2,8 +2,16 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Zoe's AI Assistant</title>
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#6C7FFF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Zoe AI">
+<link rel="apple-touch-icon" href="/icons/icon.svg">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
@@ -2047,6 +2055,23 @@ async function toggleCloudSync(convId) {
   renderSidebar();
 }
 
+/* ── PWA / SAFE AREA ── */
+/* Notch & home-indicator padding — only on mobile, zero-cost on desktop */
+@media (max-width: 768px) {
+  .input-area {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+/* When running as installed PWA (standalone), add status-bar clearance */
+@media (display-mode: standalone) {
+  .topbar {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+  .sidebar {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 /* ── Toast ── */
 function showToast(msg) {
   document.querySelector('.toast')?.remove();
@@ -2079,6 +2104,43 @@ function showToast(msg) {
 })();
 
 init();
+
+// ── PWA ──
+// Service worker (enables offline & installability)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
+// Install prompt — shown only when browser offers it (Android/Chrome/Edge)
+let _installPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _installPrompt = e;
+  // Show a small install button in the topbar on mobile
+  if (window.innerWidth <= 768) {
+    const btn = document.createElement('button');
+    btn.className = 'topbar-btn';
+    btn.id = 'installBtn';
+    btn.title = 'ホーム画面に追加';
+    btn.textContent = '＋ 追加';
+    btn.style.cssText = 'font-size:12px;padding:5px 10px;';
+    btn.onclick = async () => {
+      if (!_installPrompt) return;
+      _installPrompt.prompt();
+      const { outcome } = await _installPrompt.userChoice;
+      if (outcome === 'accepted') btn.remove();
+      _installPrompt = null;
+    };
+    const actions = document.getElementById('topbarActions');
+    if (actions && !document.getElementById('installBtn')) actions.prepend(btn);
+  }
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBtn')?.remove();
+  _installPrompt = null;
+});
 </script>
 </body>
 </html>
