@@ -203,6 +203,33 @@ body {
 .icon-btn:hover { background: var(--border); color: var(--text2); }
 .icon-btn.danger:hover { color: var(--danger); }
 
+.sidebar-links {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.sidebar-links a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  color: var(--text2);
+  text-decoration: none;
+  font-size: 12px;
+  transition: background 0.15s, color 0.15s;
+}
+.sidebar-links a:hover {
+  background: var(--surface3);
+  color: var(--text);
+}
+.sidebar-links a .link-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
 .sidebar-footer {
   padding: 10px 14px;
   border-top: 1px solid var(--border);
@@ -934,6 +961,14 @@ body {
     <button class="new-btn" onclick="openNewProjectModal()">＋ 新しいプロジェクト</button>
   </div>
   <div class="projects-list" id="projectsList"></div>
+  <div class="sidebar-links">
+    <a href="https://biz-japanese-search.vercel.app" target="_blank" rel="noopener">
+      <span class="link-icon">📊</span>BizLexis 管理台
+    </a>
+    <a href="https://biz-japanese-search.vercel.app/sandbox" target="_blank" rel="noopener">
+      <span class="link-icon">📥</span>快速入库（Sandbox）
+    </a>
+  </div>
   <div class="sidebar-footer">
     <div class="status-dot"></div>
     <span id="footerModel">Claude Sonnet 4</span>
