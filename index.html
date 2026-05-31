@@ -1806,11 +1806,16 @@ async function sendMessage() {
   const imageToSend = pendingImage;
   removePdf();
   removeImage();
+
+  // URL検出（http/https で始まる単語）
+  const urlMatch = text.match(/https?:\/\/[^\s）】」』\)]+/);
+  const urlToFetch = urlMatch ? urlMatch[0].replace(/[.,;!?]+$/, '') : null;
+
   renderMessages();
-  await callAPI(msgs, pdfToSend, imageToSend);
+  await callAPI(msgs, pdfToSend, imageToSend, urlToFetch);
 }
 
-async function callAPI(msgs, pdfData = null, imageData = null) {
+async function callAPI(msgs, pdfData = null, imageData = null, urlToFetch = null) {
   isLoading = true;
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) { sendBtn.textContent = '■'; sendBtn.onclick = stopGeneration; sendBtn.disabled = false; }
@@ -1827,7 +1832,20 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
   }
 
   let fullContent = '';
+  let urlFetched = null; // { url, text, domain }
   try {
+    // URLがあれば先にページ内容を取得（thinkingインジケーター表示中に実行）
+    if (urlToFetch) {
+      try {
+        const r = await apiFetch('/api/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: urlToFetch })
+        });
+        if (r.ok) urlFetched = await r.json();
+      } catch(e) {} // URL取得失敗は無視してそのまま送信
+    }
+
     const isGeneral = isGeneralChat(currentProjectId);
     const p = isGeneral ? null : projects.find(x => x.id === currentProjectId);
 
@@ -1851,8 +1869,19 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
             content = content || 'このPDFの内容を把握してください。';
           }
         }
+        // URLページ内容を注入
+        if (urlFetched && urlFetched.text) {
+          content = `以下は「${urlFetched.url}」のページ内容です：\n\n${urlFetched.text}\n\n---\n${content || 'このページの内容を把握してください。'}`;
+        }
         if (!content) content = '画像を確認してください。';
-        // ファイル内容をlocalStorageの履歴にも保存（次のメッセージでもAIが参照できるように）
+        // ファイル/URL内容をlocalStorageの履歴にも保存（次のメッセージでもAIが参照できるように）
+        if (urlFetched && urlFetched.text) {
+          const storedMsgs = getMessages();
+          if (storedMsgs.length > 0) {
+            storedMsgs[storedMsgs.length - 1].content = content;
+            saveMessages(storedMsgs);
+          }
+        }
         if (pdfData && pdfData.mimeType === 'text') {
           const storedMsgs = getMessages();
           if (storedMsgs.length > 0) {
