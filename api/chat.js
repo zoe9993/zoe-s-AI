@@ -71,8 +71,8 @@ async function callClaude(finalSystem, messages, imageData, isResume) {
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-6',
-      max_tokens: isResume ? 8000 : 4000,
-      temperature: isResume ? 0.3 : 0.5,
+      max_tokens: 8000,
+      temperature: isResume ? 0.3 : 1.0,
       stream: true,
       system: [{ type: 'text', text: finalSystem, cache_control: { type: 'ephemeral' } }],
       messages: claudeMessages
@@ -119,8 +119,8 @@ async function callOpenAI(finalSystem, messages, imageData, isResume) {
     },
     body: JSON.stringify({
       model: 'gpt-4o',
-      max_tokens: isResume ? 8000 : 4000,
-      temperature: isResume ? 0.3 : 0.5,
+      max_tokens: 8000,
+      temperature: isResume ? 0.3 : 1.0,
       stream: true,
       messages: openaiMessages
     })
@@ -161,7 +161,7 @@ async function callGemini(finalSystem, messages, imageData, isResume) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: finalSystem }] },
         contents,
-        generationConfig: { maxOutputTokens: isResume ? 6000 : 4000, temperature: isResume ? 0.3 : 0.5 }
+        generationConfig: { maxOutputTokens: 8000, temperature: isResume ? 0.3 : 1.0 }
       })
     }
   );
@@ -231,14 +231,8 @@ export default async function handler(req) {
     }
 
     // ── コアシステムプロンプト（全チャット共通）──────────────────────────
-    const CORE_SYSTEM = `今日の日付は${today}です。年数計算・在籍期間・経験年数は必ず今日の日付を基準に正確に計算してください。
-
-あなたはZoeの採用アシスタントです。
-・言語はユーザーに合わせて柔軟に対応すること。どの言語で聞かれても回答を拒否しないこと
-・簡潔・正確・自然に回答してください
-・情報の創作・補完は絶対禁止
-・不明点は確認すること
-・ハルシネーション禁止`;
+    const CORE_SYSTEM = `今日の日付は${today}です。年数計算は必ず今日の日付を基準に正確に計算してください。
+ユーザーの言語に合わせて柔軟に回答してください。`;
 
     const finalSystem = systemPrompt
       ? `${CORE_SYSTEM}\n\n---\n\n${systemPrompt}`
