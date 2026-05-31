@@ -1064,6 +1064,11 @@ function apiFetch(url, options = {}) {
 
 let projects = [], currentProjectId = null, editingProjectId = null;
 let selectedEmoji = '💬', isLoading = false, pendingPdf = null, pendingImage = null;
+let currentAbortCtrl = null;
+
+function stopGeneration() {
+  if (currentAbortCtrl) currentAbortCtrl.abort('user_stop');
+}
 let currentModel = 'claude-sonnet-4';
 let _syncPollTimer = null;
 
@@ -1808,7 +1813,7 @@ async function sendMessage() {
 async function callAPI(msgs, pdfData = null, imageData = null) {
   isLoading = true;
   const sendBtn = document.getElementById('sendBtn');
-  if (sendBtn) sendBtn.disabled = true;
+  if (sendBtn) { sendBtn.textContent = '■'; sendBtn.onclick = stopGeneration; sendBtn.disabled = false; }
 
   const chatArea = document.getElementById('chatArea');
 
@@ -1821,6 +1826,7 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
     chatArea.scrollTop = chatArea.scrollHeight;
   }
 
+  let fullContent = '';
   try {
     const isGeneral = isGeneralChat(currentProjectId);
     const p = isGeneral ? null : projects.find(x => x.id === currentProjectId);
@@ -1860,6 +1866,7 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
     });
 
     const abortCtrl = new AbortController();
+    currentAbortCtrl = abortCtrl;
     const abortTimer = setTimeout(() => abortCtrl.abort(), 90000); // 90秒タイムアウト
 
     const res = await apiFetch('/api/chat', {
@@ -1897,7 +1904,6 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
     // プレーンテキストストリームを読み取る
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let fullContent = '';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -1925,12 +1931,19 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
     document.getElementById('thinkingMsg')?.remove();
     document.getElementById('streamingMsg')?.remove();
     const allMsgs = getMessages();
-    const errMsg = e.name === 'AbortError' ? '⚠ タイムアウト：応答に時間がかかりすぎました。もう一度お試しください。' : '⚠ エラーが発生しました。もう一度お試しください。';
-    allMsgs.push({ role: 'ai', content: errMsg });
+    if (e.name === 'AbortError' && currentAbortCtrl?.signal?.reason === 'user_stop') {
+      // ユーザーが手動停止 → 途中まで流れた内容があれば保存、なければ何も残さない
+      if (fullContent) allMsgs.push({ role: 'ai', content: fullContent });
+    } else if (e.name === 'AbortError') {
+      allMsgs.push({ role: 'ai', content: '⚠ タイムアウト：応答に時間がかかりすぎました。もう一度お試しください。' });
+    } else {
+      allMsgs.push({ role: 'ai', content: '⚠ エラーが発生しました。もう一度お試しください。' });
+    }
     saveMessages(allMsgs);
   } finally {
     isLoading = false;
-    if (sendBtn) sendBtn.disabled = false;
+    currentAbortCtrl = null;
+    if (sendBtn) { sendBtn.textContent = '➤'; sendBtn.onclick = sendMessage; sendBtn.disabled = false; }
     renderMessages();
     document.getElementById('chatInput')?.focus();
   }
