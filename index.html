@@ -1846,6 +1846,14 @@ async function callAPI(msgs, pdfData = null, imageData = null) {
           }
         }
         if (!content) content = '画像を確認してください。';
+        // ファイル内容をlocalStorageの履歴にも保存（次のメッセージでもAIが参照できるように）
+        if (pdfData && pdfData.mimeType === 'text') {
+          const storedMsgs = getMessages();
+          if (storedMsgs.length > 0) {
+            storedMsgs[storedMsgs.length - 1].content = content;
+            saveMessages(storedMsgs);
+          }
+        }
         return { role, content };
       }
       return { role, content: m.content };
